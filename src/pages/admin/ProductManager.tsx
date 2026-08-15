@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { formatINR } from '../../lib/format'
 import Modal from '../../components/admin/Modal'
 import ImageInput from '../../components/admin/ImageInput'
+import CsvImportModal from '../../components/admin/CsvImportModal'
 import { usePolling } from '../../lib/usePolling'
 import type { Product } from '../../lib/database.types'
 
@@ -26,6 +27,7 @@ export default function ProductManager() {
   const [deleting, setDeleting] = useState<Product | null>(null)
   const [form, setForm] = useState<ProductForm>(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   const fetchProducts = async () => {
     const { data, error } = await supabase.from('products').select('*').order('category').order('name')
@@ -105,14 +107,22 @@ export default function ProductManager() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-4 gap-2 flex-wrap">
         <h1 className="text-xl font-bold">Product Manager</h1>
-        <button
-          onClick={openAdd}
-          className="bg-primary hover:bg-primary-hover text-secondary font-semibold px-4 py-2 rounded-lg text-sm"
-        >
-          + Add New Product
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setImporting(true)}
+            className="border border-border hover:border-primary text-secondary font-semibold px-4 py-2 rounded-lg text-sm"
+          >
+            Import Products from CSV
+          </button>
+          <button
+            onClick={openAdd}
+            className="bg-primary hover:bg-primary-hover text-secondary font-semibold px-4 py-2 rounded-lg text-sm"
+          >
+            + Add New Product
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -234,6 +244,13 @@ export default function ProductManager() {
             </button>
           </div>
         </Modal>
+      )}
+
+      {importing && (
+        <CsvImportModal
+          onClose={() => setImporting(false)}
+          onImported={fetchProducts}
+        />
       )}
     </div>
   )

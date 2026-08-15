@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { isAdmin } from '../config'
 
@@ -58,7 +58,9 @@ export default function Layout() {
               <path d="M3 6h18M3 12h18M3 18h18" strokeLinecap="round" />
             </svg>
           </button>
-          <span className="font-bold text-lg text-primary">Smirk Living</span>
+          <Link to="/" className="font-bold text-lg text-primary hover:text-primary-hover transition-colors">
+            Smirk Living
+          </Link>
         </div>
         <div className="flex items-center gap-3">
           <span className="hidden sm:inline text-sm text-disabled">{session?.user.email}</span>
