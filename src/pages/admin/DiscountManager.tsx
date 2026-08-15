@@ -45,7 +45,14 @@ export default function DiscountManager() {
     })
     setGenerating(false)
     if (error) {
-      toast.error(error.message.includes('duplicate') ? 'That code already exists' : 'Failed to create code')
+      toast.error(
+        error.message.includes('duplicate')
+          ? 'That code already exists'
+          : error.message.includes('row-level security')
+            ? 'Missing write permission. Run supabase/migration_qr_discount_write_policies.sql in the Supabase SQL Editor.'
+            : `Failed to create code: ${error.message}`,
+        { duration: 6000 },
+      )
       return
     }
     toast.success(`Created ${trimmed}`)

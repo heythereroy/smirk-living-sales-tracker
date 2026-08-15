@@ -52,7 +52,12 @@ export default function QrManager() {
 
     setSaving(false)
     if (error) {
-      toast.error('Failed to save QR code')
+      toast.error(
+        error.message.includes('row-level security')
+          ? 'Failed to save QR code: missing write permission. Run supabase/migration_qr_discount_write_policies.sql in the Supabase SQL Editor.'
+          : `Failed to save QR code: ${error.message}`,
+        { duration: 6000 },
+      )
       return
     }
     toast.success('QR code updated')
@@ -107,7 +112,7 @@ export default function QrManager() {
                 className="w-full bg-tertiary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
               />
             </div>
-            <ImageInput bucket="qr-images" value={imageUrl} onChange={setImageUrl} />
+            <ImageInput bucket="qr-images" folder="qr-codes" value={imageUrl} onChange={setImageUrl} />
             <div className="flex gap-2">
               <button
                 onClick={() => setEditing(false)}

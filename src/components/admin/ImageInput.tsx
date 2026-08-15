@@ -4,27 +4,34 @@ import { supabase } from '../../lib/supabase'
 
 interface Props {
   bucket: string
+  folder?: string
   value: string
   onChange: (url: string) => void
 }
 
-export default function ImageInput({ bucket, value, onChange }: Props) {
+export default function ImageInput({ bucket, folder, value, onChange }: Props) {
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFile = async (file: File) => {
     setUploading(true)
-    const path = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`
+    const filename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`
+    const path = folder ? `${folder}/${filename}` : filename
     const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: false })
     if (error) {
+      const missingBucket = error.message.toLowerCase().includes('bucket not found')
       toast.error(
-        `Upload failed: ${error.message}. Make sure a public storage bucket named "${bucket}" exists, or paste an image URL instead.`,
+        missingBucket
+          ? `The "${bucket}" storage bucket doesn't exist yet. Run supabase/migration_storage_buckets.sql in the Supabase SQL Editor, or paste an image URL instead.`
+          : `Upload failed: ${error.message}. You can paste an image URL instead.`,
+        { duration: 6000 },
       )
       setUploading(false)
       return
     }
     const { data } = supabase.storage.from(bucket).getPublicUrl(path)
     onChange(data.publicUrl)
+    toast.success('Image uploaded')
     setUploading(false)
   }
 
