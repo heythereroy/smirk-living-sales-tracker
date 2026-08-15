@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from 'react'
+import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { ALLOWED_EMAIL_DOMAIN } from '../lib/supabase'
+import LoadingSpinner from '../components/LoadingSpinner'
 
 type Mode = 'login' | 'signup' | 'forgot'
 
 export default function LoginPage() {
-  const { signUp, signIn, sendPasswordReset } = useAuth()
+  const { session, loading, signUp, signIn, sendPasswordReset } = useAuth()
   const [mode, setMode] = useState<Mode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -13,6 +15,17 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
+
+  // Sign-in/sign-up only update auth state — nothing else navigates away
+  // from /login. Without this, a successful login left the user stuck on
+  // the form until they manually refreshed (refresh works because
+  // ProtectedRoute re-checks the persisted session from scratch).
+  if (loading) {
+    return <LoadingSpinner />
+  }
+  if (session) {
+    return <Navigate to="/" replace />
+  }
 
   const resetMessages = () => {
     setError(null)

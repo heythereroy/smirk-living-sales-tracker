@@ -19,10 +19,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setLoading(false)
-    })
+    let cancelled = false
+
+    // getSession() reads the persisted session from localStorage and
+    // validates/refreshes it — this must resolve (success or failure)
+    // before we decide whether to redirect to /login, otherwise a
+    // refresh briefly looks logged-out. The try/catch+finally guarantees
+    // `loading` always clears even if the network call itself rejects.
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (cancelled) return
+        setSession(data.session)
+      })
+      .catch((err) => {
+        console.error('Failed to restore session:', err)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       // Defense in depth: even though sign-up/sign-in are gated
@@ -36,7 +51,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(newSession)
     })
 
-    return () => listener.subscription.unsubscribe()
+    return () => {
+      cancelled = true
+      listener.subscription.unsubscribe()
+    }
   }, [])
 
   const signUp = async (email: string, password: string) => {
