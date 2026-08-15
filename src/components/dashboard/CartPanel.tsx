@@ -159,7 +159,7 @@ export default function CartPanel({ appliedCode, onApplyCode, onCheckout }: Prop
             disabled={cartLines.length === 0}
             className="w-full bg-success hover:brightness-110 disabled:bg-disabled disabled:cursor-not-allowed text-secondary font-semibold py-2.5 rounded-lg transition-all"
           >
-            Checkout
+            Proceed to Checkout
           </button>
           <button
             onClick={handleClearCart}

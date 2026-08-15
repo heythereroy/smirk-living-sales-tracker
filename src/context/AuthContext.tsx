@@ -1,11 +1,14 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { supabase, isAllowedEmail } from '../lib/supabase'
+import { supabase, isAllowedEmail, ALLOWED_EMAIL_DOMAIN } from '../lib/supabase'
 
 interface AuthContextValue {
   session: Session | null
   loading: boolean
-  signInWithEmail: (email: string) => Promise<{ error: string | null }>
+  signUp: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation: boolean }>
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>
+  sendPasswordReset: (email: string) => Promise<{ error: string | null }>
+  updatePassword: (password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
 }
 
@@ -22,8 +25,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      // Defense in depth: even though sign-in is gated client-side, if a
-      // session ever shows up for a non-domain email, kick it out.
+      // Defense in depth: even though sign-up/sign-in are gated
+      // client-side, if a session ever shows up for a non-domain email,
+      // kick it out.
       if (newSession && !isAllowedEmail(newSession.user.email)) {
         supabase.auth.signOut()
         setSession(null)
@@ -35,14 +39,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => listener.subscription.unsubscribe()
   }, [])
 
-  const signInWithEmail = async (email: string) => {
+  const signUp = async (email: string, password: string) => {
     if (!isAllowedEmail(email)) {
-      return { error: 'Only @smirkliving.com email addresses can sign in.' }
+      return { error: `Only @${ALLOWED_EMAIL_DOMAIN} email addresses can sign up.`, needsConfirmation: false }
     }
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.origin },
+    const { data, error } = await supabase.auth.signUp({ email, password })
+    if (error) return { error: error.message, needsConfirmation: false }
+    // If email confirmation is required, Supabase returns a user but no session.
+    const needsConfirmation = !!data.user && !data.session
+    return { error: null, needsConfirmation }
+  }
+
+  const signIn = async (email: string, password: string) => {
+    if (!isAllowedEmail(email)) {
+      return { error: `Only @${ALLOWED_EMAIL_DOMAIN} email addresses can sign in.` }
+    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    return { error: error?.message ?? null }
+  }
+
+  const sendPasswordReset = async (email: string) => {
+    if (!isAllowedEmail(email)) {
+      return { error: `Only @${ALLOWED_EMAIL_DOMAIN} email addresses are allowed.` }
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
     })
+    return { error: error?.message ?? null }
+  }
+
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password })
     return { error: error?.message ?? null }
   }
 
@@ -52,7 +79,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, loading, signInWithEmail, signOut }}>
+    <AuthContext.Provider
+      value={{ session, loading, signUp, signIn, sendPasswordReset, updatePassword, signOut }}
+    >
       {children}
     </AuthContext.Provider>
   )

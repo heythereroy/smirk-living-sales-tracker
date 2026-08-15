@@ -5,8 +5,10 @@ import { CartProvider } from './context/CartContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
 import Layout from './components/Layout'
-import Login from './pages/Login'
+import LoginPage from './pages/LoginPage'
+import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
+import SalesLog from './pages/SalesLog'
 import ProductManager from './pages/admin/ProductManager'
 import DiscountManager from './pages/admin/DiscountManager'
 import QrManager from './pages/admin/QrManager'
@@ -25,7 +27,8 @@ export default function App() {
       />
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<Login />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route
             element={
               <ProtectedRoute>
@@ -36,6 +39,7 @@ export default function App() {
             }
           >
             <Route path="/" element={<Dashboard />} />
+            <Route path="/sales-log" element={<SalesLog />} />
             <Route
               path="/admin/products"
               element={

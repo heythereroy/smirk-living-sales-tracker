@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useCart } from '../../context/CartContext'
 import { supabase } from '../../lib/supabase'
 import { formatINR } from '../../lib/format'
 import { computeDiscount } from '../../lib/discount'
-import type { DiscountCode, PaymentMethod, QrConfig } from '../../lib/database.types'
+import { printReceipt } from '../../lib/receipt'
+import type { DiscountCode, Order, PaymentMethod, QrConfig } from '../../lib/database.types'
 
 interface Props {
   appliedCode: DiscountCode | null
@@ -12,15 +13,32 @@ interface Props {
   onComplete: () => void
 }
 
+type Step = 'details' | 'payment' | 'receipt'
+
 export default function CheckoutModal({ appliedCode, onClose, onComplete }: Props) {
   const { cartLines, subtotal, clearCart } = useCart()
+  const [step, setStep] = useState<Step>('details')
+  const [customerName, setCustomerName] = useState('')
+  const [customerPhone, setCustomerPhone] = useState('')
+  const [customerEmail, setCustomerEmail] = useState('')
   const [method, setMethod] = useState<PaymentMethod | null>(null)
   const [qrConfig, setQrConfig] = useState<QrConfig | null>(null)
   const [qrLoading, setQrLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [completedOrder, setCompletedOrder] = useState<Order | null>(null)
 
   const discount = computeDiscount(subtotal, appliedCode)
-  const total = subtotal - discount.amount
+  const computedTotal = subtotal - discount.amount
+  const [amount, setAmount] = useState(computedTotal)
+
+  useEffect(() => {
+    setAmount(computedTotal)
+  }, [computedTotal])
+
+  const receiptLines = useMemo(
+    () => cartLines.map((l) => ({ name: l.product.name, quantity: l.quantity, price: l.product.price })),
+    [cartLines],
+  )
 
   useEffect(() => {
     if (method !== 'phonepe') return
@@ -36,6 +54,11 @@ export default function CheckoutModal({ appliedCode, onClose, onComplete }: Prop
       })
   }, [method])
 
+  const chooseMethod = (m: PaymentMethod) => {
+    setMethod(m)
+    setStep('payment')
+  }
+
   const handleConfirm = async () => {
     if (!method) return
     setSubmitting(true)
@@ -45,15 +68,22 @@ export default function CheckoutModal({ appliedCode, onClose, onComplete }: Prop
       .insert({
         subtotal,
         discount_amount: discount.amount,
-        total,
+        total: amount,
         payment_method: method,
         discount_code_used: appliedCode?.code ?? null,
+        customer_name: customerName.trim() || null,
+        customer_phone: customerPhone.trim() || null,
+        customer_email: customerEmail.trim() || null,
       })
       .select()
       .single()
 
     if (orderError || !order) {
-      toast.error('Could not save order')
+      toast.error(
+        orderError?.message.includes('customer_')
+          ? 'Order failed — the customer_name/phone/email columns are missing. Run supabase/migration_add_customer_fields.sql first.'
+          : 'Could not save order',
+      )
       setSubmitting(false)
       return
     }
@@ -79,58 +109,89 @@ export default function CheckoutModal({ appliedCode, onClose, onComplete }: Prop
 
     await clearCart()
     setSubmitting(false)
-    toast.success(`Order #${order.id} complete — ${formatINR(total)}`)
-    onComplete()
+    setCompletedOrder(order as Order)
+    setStep('receipt')
+    toast.success(`Order #${order.id} complete — ${formatINR(amount)}`)
   }
+
+  const amountDiffersFromComputed = amount !== computedTotal
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70" onClick={submitting ? undefined : onClose} />
-      <div className="relative bg-[#242424] border border-border rounded-xl w-full max-w-md p-6">
+      <div className="relative bg-[#242424] border border-border rounded-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="font-bold text-lg">Checkout</h2>
-          <button onClick={onClose} disabled={submitting} className="text-disabled hover:text-secondary">
-            ✕
-          </button>
-        </div>
-
-        <div className="bg-tertiary rounded-lg p-3 mb-4 text-sm">
-          <div className="flex justify-between text-disabled">
-            <span>Subtotal</span>
-            <span>{formatINR(subtotal)}</span>
-          </div>
-          {discount.amount > 0 && (
-            <div className="flex justify-between text-success">
-              <span>Discount</span>
-              <span>−{formatINR(discount.amount)}</span>
-            </div>
+          <h2 className="font-bold text-lg">{step === 'receipt' ? 'Order Complete' : 'Checkout'}</h2>
+          {step !== 'receipt' && (
+            <button onClick={onClose} disabled={submitting} className="text-disabled hover:text-secondary">
+              ✕
+            </button>
           )}
-          <div className="flex justify-between font-bold text-base mt-1 pt-1 border-t border-border">
-            <span>Total</span>
-            <span className="text-primary">{formatINR(total)}</span>
-          </div>
         </div>
 
-        {!method && (
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => setMethod('phonepe')}
-              className="border border-border hover:border-primary rounded-xl py-6 flex flex-col items-center gap-2 transition-colors"
-            >
-              <span className="text-2xl">📱</span>
-              <span className="font-medium">PhonePe QR</span>
-            </button>
-            <button
-              onClick={() => setMethod('cash')}
-              className="border border-border hover:border-primary rounded-xl py-6 flex flex-col items-center gap-2 transition-colors"
-            >
-              <span className="text-2xl">💵</span>
-              <span className="font-medium">Cash</span>
-            </button>
+        {step !== 'receipt' && (
+          <div className="bg-tertiary rounded-lg p-3 mb-4 text-sm">
+            <div className="flex justify-between text-disabled">
+              <span>Subtotal</span>
+              <span>{formatINR(subtotal)}</span>
+            </div>
+            {discount.amount > 0 && (
+              <div className="flex justify-between text-success">
+                <span>Discount</span>
+                <span>−{formatINR(discount.amount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-bold text-base mt-1 pt-1 border-t border-border">
+              <span>Total</span>
+              <span className="text-primary">{formatINR(computedTotal)}</span>
+            </div>
           </div>
         )}
 
-        {method === 'phonepe' && (
+        {step === 'details' && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-disabled">Customer details (optional)</p>
+            <input
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="Customer name"
+              className="w-full bg-tertiary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+            />
+            <input
+              value={customerPhone}
+              onChange={(e) => setCustomerPhone(e.target.value)}
+              placeholder="Phone number"
+              className="w-full bg-tertiary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+            />
+            <input
+              value={customerEmail}
+              onChange={(e) => setCustomerEmail(e.target.value)}
+              placeholder="Email"
+              type="email"
+              className="w-full bg-tertiary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+            />
+
+            <p className="text-sm text-disabled mt-2">Payment method</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => chooseMethod('phonepe')}
+                className="border border-border hover:border-primary rounded-xl py-6 flex flex-col items-center gap-2 transition-colors"
+              >
+                <span className="text-2xl">📱</span>
+                <span className="font-medium">PhonePe QR</span>
+              </button>
+              <button
+                onClick={() => chooseMethod('cash')}
+                className="border border-border hover:border-primary rounded-xl py-6 flex flex-col items-center gap-2 transition-colors"
+              >
+                <span className="text-2xl">💵</span>
+                <span className="font-medium">Cash</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'payment' && method === 'phonepe' && (
           <div className="flex flex-col items-center gap-3">
             {qrLoading ? (
               <p className="text-disabled text-sm py-8">Loading QR…</p>
@@ -148,9 +209,12 @@ export default function CheckoutModal({ appliedCode, onClose, onComplete }: Prop
                 No active QR code configured. Set one up in Admin → QR Manager, or use Cash.
               </p>
             )}
+
+            <AmountField amount={amount} setAmount={setAmount} differs={amountDiffersFromComputed} />
+
             <div className="flex gap-2 w-full mt-2">
               <button
-                onClick={() => setMethod(null)}
+                onClick={() => setStep('details')}
                 disabled={submitting}
                 className="flex-1 border border-border rounded-lg py-2.5 text-sm hover:bg-tertiary"
               >
@@ -167,15 +231,13 @@ export default function CheckoutModal({ appliedCode, onClose, onComplete }: Prop
           </div>
         )}
 
-        {method === 'cash' && (
+        {step === 'payment' && method === 'cash' && (
           <div className="flex flex-col gap-3">
-            <p className="text-center text-sm text-disabled py-4">
-              Confirm you've received <span className="text-secondary font-semibold">{formatINR(total)}</span>{' '}
-              in cash.
-            </p>
+            <p className="text-center text-sm text-disabled py-2">Confirm the cash amount received.</p>
+            <AmountField amount={amount} setAmount={setAmount} differs={amountDiffersFromComputed} />
             <div className="flex gap-2 w-full">
               <button
-                onClick={() => setMethod(null)}
+                onClick={() => setStep('details')}
                 disabled={submitting}
                 className="flex-1 border border-border rounded-lg py-2.5 text-sm hover:bg-tertiary"
               >
@@ -191,7 +253,60 @@ export default function CheckoutModal({ appliedCode, onClose, onComplete }: Prop
             </div>
           </div>
         )}
+
+        {step === 'receipt' && completedOrder && (
+          <div className="flex flex-col gap-4 items-center text-center">
+            <div className="w-14 h-14 rounded-full bg-success/20 flex items-center justify-center text-success text-2xl">
+              ✓
+            </div>
+            <div>
+              <p className="font-bold text-lg">Order #{completedOrder.id}</p>
+              <p className="text-primary text-2xl font-extrabold mt-1">{formatINR(completedOrder.total)}</p>
+              <p className="text-disabled text-sm mt-1">
+                Paid via {completedOrder.payment_method === 'phonepe' ? 'PhonePe' : 'Cash'}
+              </p>
+            </div>
+            <div className="flex gap-2 w-full">
+              <button
+                onClick={() => printReceipt(completedOrder, receiptLines)}
+                className="flex-1 border border-border rounded-lg py-2.5 text-sm hover:bg-tertiary"
+              >
+                Print Receipt
+              </button>
+              <button
+                onClick={onComplete}
+                className="flex-1 bg-primary hover:bg-primary-hover text-secondary font-semibold rounded-lg py-2.5 text-sm"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+    </div>
+  )
+}
+
+function AmountField({
+  amount,
+  setAmount,
+  differs,
+}: {
+  amount: number
+  setAmount: (n: number) => void
+  differs: boolean
+}) {
+  return (
+    <div className="w-full">
+      <label className="block text-sm text-disabled mb-1">Amount to charge (₹)</label>
+      <input
+        type="number"
+        min="0"
+        value={amount}
+        onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+        className="w-full bg-tertiary border border-border rounded-lg px-3 py-2.5 text-lg font-semibold text-center focus:outline-none focus:border-primary"
+      />
+      {differs && <p className="text-xs text-disabled mt-1">Adjusted from the calculated total.</p>}
     </div>
   )
 }

@@ -29,6 +29,11 @@ export interface Order {
   payment_method: PaymentMethod
   discount_code_used: string | null
   created_at: string
+  // Added via supabase/migration_add_customer_fields.sql — run that
+  // migration before these are readable/writable on the live DB.
+  customer_name: string | null
+  customer_phone: string | null
+  customer_email: string | null
 }
 
 export interface OrderItem {

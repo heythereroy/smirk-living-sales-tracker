@@ -5,6 +5,7 @@ import { isAdmin } from '../config'
 
 const navItems = [
   { to: '/', label: 'Dashboard', end: true },
+  { to: '/sales-log', label: 'Sales Log' },
   { to: '/admin/products', label: 'Products', admin: true },
   { to: '/admin/discounts', label: 'Discounts', admin: true },
   { to: '/admin/qr', label: 'QR Manager', admin: true },

@@ -8,7 +8,7 @@ interface CartContextValue {
   cartLines: CartLine[]
   loading: boolean
   subtotal: number
-  addToCart: (product: Product) => Promise<void>
+  addToCart: (product: Product, quantity?: number) => Promise<void>
   setQuantity: (cartId: number, quantity: number) => Promise<void>
   removeFromCart: (cartId: number) => Promise<void>
   clearCart: () => Promise<void>
@@ -66,17 +66,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [fetchProducts, fetchCart])
 
-  const addToCart = async (product: Product) => {
+  const addToCart = async (product: Product, quantity = 1) => {
     const existing = cartLines.find((l) => l.product_id === product.id)
     if (existing) {
       const { error } = await supabase
         .from('cart')
-        .update({ quantity: existing.quantity + 1, updated_at: new Date().toISOString() })
+        .update({ quantity: existing.quantity + quantity, updated_at: new Date().toISOString() })
         .eq('id', existing.id)
       if (error) toast.error('Could not update cart')
       return
     }
-    const { error } = await supabase.from('cart').insert({ product_id: product.id, quantity: 1 })
+    const { error } = await supabase.from('cart').insert({ product_id: product.id, quantity })
     if (error) toast.error('Could not add to cart')
   }
 
