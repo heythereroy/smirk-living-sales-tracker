@@ -1,7 +1,10 @@
-import { createContext, useContext, useCallback, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useCallback, useState, type ReactNode } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
+import { usePolling } from '../lib/usePolling'
 import type { CartLine, Product } from '../lib/database.types'
+
+const CART_POLL_MS = 1500
 
 interface CartContextValue {
   products: Product[]
@@ -23,10 +26,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const fetchProducts = useCallback(async () => {
     const { data, error } = await supabase.from('products').select('*').order('category').order('name')
-    if (error) {
-      toast.error('Failed to load products')
-      return
-    }
+    if (error) return
     setProducts(data as Product[])
   }, [])
 
@@ -35,36 +35,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       .from('cart')
       .select('*, product:products(*)')
       .order('created_at')
-    if (error) {
-      toast.error('Failed to load cart')
-      return
-    }
+    if (error) return
     setCartLines((data as unknown as CartLine[]).filter((line) => line.product))
   }, [])
 
-  useEffect(() => {
+  usePolling(() => {
     Promise.all([fetchProducts(), fetchCart()]).finally(() => setLoading(false))
-
-    const cartChannel = supabase
-      .channel('cart-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'cart' }, () => {
-        fetchCart()
-      })
-      .subscribe()
-
-    const productsChannel = supabase
-      .channel('products-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-        fetchProducts()
-        fetchCart()
-      })
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(cartChannel)
-      supabase.removeChannel(productsChannel)
-    }
-  }, [fetchProducts, fetchCart])
+  }, CART_POLL_MS)
 
   const addToCart = async (product: Product, quantity = 1) => {
     const existing = cartLines.find((l) => l.product_id === product.id)
@@ -73,11 +50,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
         .from('cart')
         .update({ quantity: existing.quantity + quantity, updated_at: new Date().toISOString() })
         .eq('id', existing.id)
-      if (error) toast.error('Could not update cart')
-      return
+      if (error) {
+        toast.error('Could not update cart')
+        return
+      }
+    } else {
+      const { error } = await supabase.from('cart').insert({ product_id: product.id, quantity })
+      if (error) {
+        toast.error('Could not add to cart')
+        return
+      }
     }
-    const { error } = await supabase.from('cart').insert({ product_id: product.id, quantity })
-    if (error) toast.error('Could not add to cart')
+    await fetchCart()
   }
 
   const setQuantity = async (cartId: number, quantity: number) => {
@@ -89,17 +73,29 @@ export function CartProvider({ children }: { children: ReactNode }) {
       .from('cart')
       .update({ quantity, updated_at: new Date().toISOString() })
       .eq('id', cartId)
-    if (error) toast.error('Could not update quantity')
+    if (error) {
+      toast.error('Could not update quantity')
+      return
+    }
+    await fetchCart()
   }
 
   const removeFromCart = async (cartId: number) => {
     const { error } = await supabase.from('cart').delete().eq('id', cartId)
-    if (error) toast.error('Could not remove item')
+    if (error) {
+      toast.error('Could not remove item')
+      return
+    }
+    await fetchCart()
   }
 
   const clearCart = async () => {
     const { error } = await supabase.from('cart').delete().gte('id', 0)
-    if (error) toast.error('Could not clear cart')
+    if (error) {
+      toast.error('Could not clear cart')
+      return
+    }
+    await fetchCart()
   }
 
   const subtotal = cartLines.reduce((sum, line) => sum + line.product.price * line.quantity, 0)

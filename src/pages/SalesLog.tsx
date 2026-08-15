@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import { formatINR } from '../lib/format'
 import { printReceipt } from '../lib/receipt'
+import { usePolling } from '../lib/usePolling'
 import type { Order, Product } from '../lib/database.types'
+
+const SALES_LOG_POLL_MS = 3000
 
 interface LineWithProduct {
   id: number
@@ -29,16 +32,7 @@ export default function SalesLog() {
     setLoading(false)
   }
 
-  useEffect(() => {
-    fetchOrders()
-    const channel = supabase
-      .channel('sales-log')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchOrders())
-      .subscribe()
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [])
+  usePolling(fetchOrders, SALES_LOG_POLL_MS)
 
   const toggleExpand = async (orderId: number) => {
     if (expanded === orderId) {

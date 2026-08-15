@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { formatINR } from '../../lib/format'
 import { isAdmin } from '../../config'
 import { useAuth } from '../../context/AuthContext'
+import { usePolling } from '../../lib/usePolling'
 import type { Order } from '../../lib/database.types'
+
+const SUMMARY_POLL_MS = 3000
 
 function startOfTodayISO() {
   const d = new Date()
@@ -53,17 +56,7 @@ export default function DailySummary() {
     setLoading(false)
   }, [])
 
-  useEffect(() => {
-    fetchSummary()
-    const channel = supabase
-      .channel('orders-summary')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchSummary())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => fetchSummary())
-      .subscribe()
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [fetchSummary])
+  usePolling(fetchSummary, SUMMARY_POLL_MS)
 
   const revenue = orders.reduce((sum, o) => sum + o.total, 0)
   const lastOrder = orders[0]
@@ -90,6 +83,7 @@ export default function DailySummary() {
     }
     toast.success("Today's summary reset")
     setResetting(false)
+    fetchSummary()
   }
 
   return (

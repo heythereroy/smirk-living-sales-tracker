@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import ImageInput from '../../components/admin/ImageInput'
+import { usePolling } from '../../lib/usePolling'
 import type { QrConfig } from '../../lib/database.types'
+
+const ADMIN_POLL_MS = 3000
 
 export default function QrManager() {
   const [configs, setConfigs] = useState<QrConfig[]>([])
@@ -22,16 +25,7 @@ export default function QrManager() {
     setLoading(false)
   }
 
-  useEffect(() => {
-    fetchConfigs()
-    const channel = supabase
-      .channel('admin-qr')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'qr_configs' }, () => fetchConfigs())
-      .subscribe()
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [])
+  usePolling(fetchConfigs, ADMIN_POLL_MS)
 
   const active = configs.find((c) => c.is_active)
 
@@ -63,18 +57,21 @@ export default function QrManager() {
     }
     toast.success('QR code updated')
     setEditing(false)
+    fetchConfigs()
   }
 
   const setActive = async (config: QrConfig) => {
     await supabase.from('qr_configs').update({ is_active: false }).eq('is_active', true)
     const { error } = await supabase.from('qr_configs').update({ is_active: true }).eq('id', config.id)
     if (error) toast.error('Failed to activate')
+    else fetchConfigs()
   }
 
   const deleteConfig = async (config: QrConfig) => {
     if (!window.confirm(`Delete "${config.qr_name}"?`)) return
     const { error } = await supabase.from('qr_configs').delete().eq('id', config.id)
     if (error) toast.error('Failed to delete')
+    else fetchConfigs()
   }
 
   if (loading) return <p className="text-disabled text-sm">Loading…</p>

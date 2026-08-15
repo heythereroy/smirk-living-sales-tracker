@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
+import { usePolling } from '../../lib/usePolling'
 import type { DiscountCode } from '../../lib/database.types'
+
+const ADMIN_POLL_MS = 3000
 
 export default function DiscountManager() {
   const [codes, setCodes] = useState<DiscountCode[]>([])
@@ -20,16 +23,7 @@ export default function DiscountManager() {
     setLoading(false)
   }
 
-  useEffect(() => {
-    fetchCodes()
-    const channel = supabase
-      .channel('admin-discounts')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'discount_codes' }, () => fetchCodes())
-      .subscribe()
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [])
+  usePolling(fetchCodes, ADMIN_POLL_MS)
 
   const handleGenerate = async () => {
     const trimmed = name.trim().toUpperCase()
@@ -57,6 +51,7 @@ export default function DiscountManager() {
     toast.success(`Created ${trimmed}`)
     setName('')
     setPercent('')
+    fetchCodes()
   }
 
   const toggleActive = async (code: DiscountCode) => {
@@ -65,13 +60,17 @@ export default function DiscountManager() {
       .update({ is_active: !code.is_active })
       .eq('id', code.id)
     if (error) toast.error('Failed to update code')
+    else fetchCodes()
   }
 
   const deleteCode = async (code: DiscountCode) => {
     if (!window.confirm(`Delete code "${code.code}"?`)) return
     const { error } = await supabase.from('discount_codes').delete().eq('id', code.id)
     if (error) toast.error('Failed to delete code')
-    else toast.success('Code deleted')
+    else {
+      toast.success('Code deleted')
+      fetchCodes()
+    }
   }
 
   return (

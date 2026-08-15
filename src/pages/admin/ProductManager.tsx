@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { formatINR } from '../../lib/format'
 import Modal from '../../components/admin/Modal'
 import ImageInput from '../../components/admin/ImageInput'
+import { usePolling } from '../../lib/usePolling'
 import type { Product } from '../../lib/database.types'
+
+const ADMIN_POLL_MS = 3000
 
 type ProductForm = {
   name: string
@@ -34,16 +37,7 @@ export default function ProductManager() {
     setLoading(false)
   }
 
-  useEffect(() => {
-    fetchProducts()
-    const channel = supabase
-      .channel('admin-products')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => fetchProducts())
-      .subscribe()
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [])
+  usePolling(fetchProducts, ADMIN_POLL_MS)
 
   const openEdit = (product: Product) => {
     setEditing(product)
@@ -92,6 +86,7 @@ export default function ProductManager() {
     }
     setSaving(false)
     closeForm()
+    fetchProducts()
   }
 
   const handleDelete = async () => {
@@ -104,6 +99,7 @@ export default function ProductManager() {
     } else {
       toast.success('Product deleted')
       setDeleting(null)
+      fetchProducts()
     }
   }
 

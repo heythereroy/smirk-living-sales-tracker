@@ -108,8 +108,13 @@ export default function CheckoutModal({ appliedCode, onClose, onComplete }: Prop
     }
 
     await clearCart()
+
+    // Re-fetch rather than trust the insert response, so the receipt
+    // reflects exactly what's persisted.
+    const { data: savedOrder } = await supabase.from('orders').select('*').eq('id', order.id).single()
+
     setSubmitting(false)
-    setCompletedOrder(order as Order)
+    setCompletedOrder((savedOrder as Order) ?? (order as Order))
     setStep('receipt')
     toast.success(`Order #${order.id} complete — ${formatINR(amount)}`)
   }
