@@ -1,22 +1,11 @@
-import type { DiscountCode } from './database.types'
-
-// Discounts are manual only — the cashier must explicitly apply a named
-// code or type a flat/percentage value. There is no automatic threshold
-// discount.
-export type AppliedDiscount =
-  | { source: 'code'; code: DiscountCode; type: 'code'; value: number; amount: number; label: string }
-  | { source: 'manual'; type: 'flat' | 'percentage'; value: number; amount: number; label: string }
-
-export function discountFromCode(subtotal: number, code: DiscountCode): AppliedDiscount {
-  const amount = Math.round((subtotal * code.discount_percent) / 100)
-  return {
-    source: 'code',
-    code,
-    type: 'code',
-    value: code.discount_percent,
-    amount,
-    label: `${code.code} — ${code.discount_percent}% OFF`,
-  }
+// Discounts are manual only, and there is exactly one path to apply
+// one: the cashier types a flat ₹ amount or a percentage directly.
+// There is no discount-code lookup and no automatic threshold discount.
+export interface AppliedDiscount {
+  type: 'flat' | 'percentage'
+  value: number
+  amount: number
+  label: string
 }
 
 export function parseManualDiscount(
@@ -38,12 +27,12 @@ export function parseManualDiscount(
     if (num > 100) return { error: 'Percentage cannot exceed 100%' }
     const amount = Math.round((subtotal * num) / 100)
     return {
-      discount: { source: 'manual', type: 'percentage', value: num, amount, label: `${num}% off` },
+      discount: { type: 'percentage', value: num, amount, label: `${num}% off` },
     }
   }
 
   if (num > subtotal) return { error: 'Discount cannot exceed cart total' }
   return {
-    discount: { source: 'manual', type: 'flat', value: num, amount: num, label: `₹${num} off` },
+    discount: { type: 'flat', value: num, amount: num, label: `₹${num} off` },
   }
 }

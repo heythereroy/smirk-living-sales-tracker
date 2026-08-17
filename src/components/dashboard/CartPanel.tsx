@@ -1,10 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useCart } from '../../context/CartContext'
-import { supabase } from '../../lib/supabase'
 import { formatINR } from '../../lib/format'
-import { discountFromCode, parseManualDiscount, type AppliedDiscount } from '../../lib/discount'
-import type { DiscountCode } from '../../lib/database.types'
+import { parseManualDiscount, type AppliedDiscount } from '../../lib/discount'
 
 interface Props {
   appliedDiscount: AppliedDiscount | null
@@ -14,65 +12,33 @@ interface Props {
 
 export default function CartPanel({ appliedDiscount, onApplyDiscount, onCheckout }: Props) {
   const { cartLines, subtotal, setQuantity, removeFromCart, clearCart } = useCart()
-  const [codeInput, setCodeInput] = useState('')
-  const [applyingCode, setApplyingCode] = useState(false)
-  const [activeCodes, setActiveCodes] = useState<DiscountCode[]>([])
-  const [manualInput, setManualInput] = useState('')
-
-  useEffect(() => {
-    supabase
-      .from('discount_codes')
-      .select('*')
-      .eq('is_active', true)
-      .then(({ data }) => setActiveCodes((data as DiscountCode[]) ?? []))
-  }, [])
+  const [discountInput, setDiscountInput] = useState('')
 
   const total = subtotal - (appliedDiscount?.amount ?? 0)
 
-  const manualPreview = useMemo(() => {
-    if (!manualInput.trim()) return null
-    return parseManualDiscount(manualInput, subtotal)
-  }, [manualInput, subtotal])
+  const preview = useMemo(() => {
+    if (!discountInput.trim()) return null
+    return parseManualDiscount(discountInput, subtotal)
+  }, [discountInput, subtotal])
 
-  const handleApplyCode = async () => {
-    const trimmed = codeInput.trim()
-    if (!trimmed) return
-    setApplyingCode(true)
-    const { data, error } = await supabase
-      .from('discount_codes')
-      .select('*')
-      .ilike('code', trimmed)
-      .eq('is_active', true)
-      .maybeSingle()
-    setApplyingCode(false)
-    if (error || !data) {
-      toast.error('Invalid or inactive discount code')
+  const handleApplyDiscount = () => {
+    if (!preview) return
+    if ('error' in preview) {
+      toast.error(preview.error)
       return
     }
-    const discount = discountFromCode(subtotal, data as DiscountCode)
-    onApplyDiscount(discount)
-    toast.success(`Applied ${discount.label}`)
-  }
-
-  const handleApplyManual = () => {
-    if (!manualPreview) return
-    if ('error' in manualPreview) {
-      toast.error(manualPreview.error)
-      return
-    }
-    onApplyDiscount(manualPreview.discount)
+    onApplyDiscount(preview.discount)
     toast.success(
-      manualPreview.discount.type === 'percentage'
-        ? `Discount of ${manualPreview.discount.value}% applied`
-        : `Discount of ${formatINR(manualPreview.discount.value)} applied`,
+      preview.discount.type === 'percentage'
+        ? `Discount of ${preview.discount.value}% applied`
+        : `Discount of ${formatINR(preview.discount.value)} applied`,
     )
-    setManualInput('')
+    setDiscountInput('')
   }
 
   const clearDiscount = () => {
     onApplyDiscount(null)
-    setCodeInput('')
-    setManualInput('')
+    setDiscountInput('')
   }
 
   const handleClearCart = async () => {
@@ -129,60 +95,34 @@ export default function CartPanel({ appliedDiscount, onApplyDiscount, onCheckout
           <div className="flex items-center justify-between text-sm mb-2">
             <span className="text-success">✓ {appliedDiscount.label} applied</span>
             <button className="text-disabled underline text-xs" onClick={clearDiscount}>
-              Remove
+              Clear Discount
             </button>
           </div>
         ) : (
-          <div className="mb-3 flex flex-col gap-3">
-            <div>
-              <p className="text-xs text-disabled mb-1">Discount code</p>
-              <div className="flex gap-2">
-                <input
-                  value={codeInput}
-                  onChange={(e) => setCodeInput(e.target.value)}
-                  placeholder="Discount code"
-                  className="flex-1 min-w-0 bg-tertiary border border-border rounded-lg px-2.5 py-1.5 text-sm placeholder:text-disabled focus:outline-none focus:border-primary"
-                />
-                <button
-                  onClick={handleApplyCode}
-                  disabled={applyingCode || !codeInput.trim()}
-                  className="px-3 py-1.5 rounded-lg bg-tertiary border border-border hover:border-primary disabled:opacity-50 text-sm shrink-0"
-                >
-                  Apply
-                </button>
-              </div>
-              {activeCodes.length > 0 && (
-                <p className="text-xs text-disabled mt-1.5">
-                  Active codes: {activeCodes.map((c) => `${c.code} (${c.discount_percent}%)`).join(', ')}
-                </p>
-              )}
+          <div className="mb-3">
+            <p className="text-xs text-disabled mb-1">Apply Discount</p>
+            <div className="flex gap-2">
+              <input
+                value={discountInput}
+                onChange={(e) => setDiscountInput(e.target.value)}
+                placeholder="e.g., 10 or 10%"
+                className="flex-1 min-w-0 bg-tertiary border border-border rounded-lg px-2.5 py-1.5 text-sm placeholder:text-disabled focus:outline-none focus:border-primary"
+              />
+              <button
+                onClick={handleApplyDiscount}
+                disabled={!discountInput.trim()}
+                className="px-3 py-1.5 rounded-lg bg-tertiary border border-border hover:border-primary disabled:opacity-50 text-sm shrink-0"
+              >
+                Apply Discount
+              </button>
             </div>
-
-            <div>
-              <p className="text-xs text-disabled mb-1">Apply Discount (flat ₹ or %)</p>
-              <div className="flex gap-2">
-                <input
-                  value={manualInput}
-                  onChange={(e) => setManualInput(e.target.value)}
-                  placeholder="e.g., 10 or 10%"
-                  className="flex-1 min-w-0 bg-tertiary border border-border rounded-lg px-2.5 py-1.5 text-sm placeholder:text-disabled focus:outline-none focus:border-primary"
-                />
-                <button
-                  onClick={handleApplyManual}
-                  disabled={!manualInput.trim()}
-                  className="px-3 py-1.5 rounded-lg bg-tertiary border border-border hover:border-primary disabled:opacity-50 text-sm shrink-0"
-                >
-                  Apply Discount
-                </button>
-              </div>
-              {manualPreview && (
-                <p className={`text-xs mt-1.5 ${'error' in manualPreview ? 'text-danger' : 'text-success'}`}>
-                  {'error' in manualPreview
-                    ? manualPreview.error
-                    : `Preview: ${formatINR(subtotal)} − ${formatINR(manualPreview.discount.amount)} = ${formatINR(subtotal - manualPreview.discount.amount)}`}
-                </p>
-              )}
-            </div>
+            {preview && (
+              <p className={`text-xs mt-1.5 ${'error' in preview ? 'text-danger' : 'text-success'}`}>
+                {'error' in preview
+                  ? preview.error
+                  : `Preview: ${formatINR(subtotal)} − ${formatINR(preview.discount.amount)} = ${formatINR(subtotal - preview.discount.amount)}`}
+              </p>
+            )}
           </div>
         )}
 

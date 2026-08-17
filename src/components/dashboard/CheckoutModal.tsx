@@ -77,7 +77,7 @@ export default function CheckoutModal({ appliedDiscount, onClose, onComplete }: 
         total: amount,
         final_total: amount,
         payment_method: method,
-        discount_code_used: appliedDiscount?.source === 'code' ? appliedDiscount.code.code : null,
+        discount_code_used: null,
         discount_type: appliedDiscount?.type ?? null,
         discount_value: appliedDiscount?.value ?? null,
         customer_name: customerName.trim() || null,
@@ -112,13 +112,6 @@ export default function CheckoutModal({ appliedDiscount, onClose, onComplete }: 
       toast.error('Order saved but line items failed')
       setSubmitting(false)
       return
-    }
-
-    if (appliedDiscount?.source === 'code') {
-      await supabase
-        .from('discount_codes')
-        .update({ used_count: appliedDiscount.code.used_count + 1 })
-        .eq('id', appliedDiscount.code.id)
     }
 
     await clearCart()

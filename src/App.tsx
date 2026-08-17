@@ -12,7 +12,6 @@ import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
 import SalesLog from './pages/SalesLog'
 import ProductManager from './pages/admin/ProductManager'
-import DiscountManager from './pages/admin/DiscountManager'
 import QrManager from './pages/admin/QrManager'
 import CashSales from './pages/admin/CashSales'
 import Chatbot from './components/analytics/Chatbot'
@@ -53,14 +52,6 @@ export default function App() {
                 element={
                   <AdminRoute>
                     <ProductManager />
-                  </AdminRoute>
-                }
-              />
-              <Route
-                path="/admin/discounts"
-                element={
-                  <AdminRoute>
-                    <DiscountManager />
                   </AdminRoute>
                 }
               />

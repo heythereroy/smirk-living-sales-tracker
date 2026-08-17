@@ -50,6 +50,9 @@ export interface Order {
   discount_amount: number
   total: number
   payment_method: PaymentMethod
+  // Legacy — the discount-codes feature was removed. Old orders placed
+  // while it existed may still have a value here; nothing writes to it
+  // anymore. Kept only so historical orders still display correctly.
   discount_code_used: string | null
   created_at: string
   // Added via supabase/migration_add_customer_fields.sql — run that
@@ -60,7 +63,8 @@ export interface Order {
   // Added via supabase/migration_events.sql — nullable since orders
   // placed before that migration ran have no event. events.id is uuid.
   event_id: string | null
-  // Added via supabase/migration_discount_tracking.sql.
+  // Added via supabase/migration_discount_tracking.sql. 'code' is a
+  // legacy value from before the discount-codes feature was removed.
   discount_type: 'flat' | 'percentage' | 'code' | null
   discount_value: number | null
   final_total: number
@@ -82,15 +86,6 @@ export interface OrderItem {
   order_id: number
   product_id: number
   quantity: number
-}
-
-export interface DiscountCode {
-  id: number
-  code: string
-  discount_percent: number
-  used_count: number
-  is_active: boolean
-  created_at: string
 }
 
 export interface QrConfig {
