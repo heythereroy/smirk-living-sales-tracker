@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useCart } from '../../context/CartContext'
+import { useEvent } from '../../context/EventContext'
 import { supabase } from '../../lib/supabase'
 import { formatINR } from '../../lib/format'
 import { computeDiscount } from '../../lib/discount'
@@ -17,6 +18,7 @@ type Step = 'details' | 'payment' | 'receipt'
 
 export default function CheckoutModal({ appliedCode, onClose, onComplete }: Props) {
   const { cartLines, subtotal, clearCart } = useCart()
+  const { activeEvent } = useEvent()
   const [step, setStep] = useState<Step>('details')
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
@@ -61,6 +63,10 @@ export default function CheckoutModal({ appliedCode, onClose, onComplete }: Prop
 
   const handleConfirm = async () => {
     if (!method) return
+    if (!activeEvent) {
+      toast.error('No active event — start an event before checking out.')
+      return
+    }
     setSubmitting(true)
 
     const { data: order, error: orderError } = await supabase
@@ -74,6 +80,7 @@ export default function CheckoutModal({ appliedCode, onClose, onComplete }: Prop
         customer_name: customerName.trim() || null,
         customer_phone: customerPhone.trim() || null,
         customer_email: customerEmail.trim() || null,
+        event_id: activeEvent.id,
       })
       .select()
       .single()
@@ -82,7 +89,9 @@ export default function CheckoutModal({ appliedCode, onClose, onComplete }: Prop
       toast.error(
         orderError?.message.includes('customer_')
           ? 'Order failed — the customer_name/phone/email columns are missing. Run supabase/migration_add_customer_fields.sql first.'
-          : 'Could not save order',
+          : orderError?.message.includes('event_id')
+            ? 'Order failed — the event_id column is missing. Run supabase/migration_events.sql first.'
+            : 'Could not save order',
       )
       setSubmitting(false)
       return

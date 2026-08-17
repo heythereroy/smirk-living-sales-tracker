@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useCart } from '../../context/CartContext'
+import { useEvent } from '../../context/EventContext'
 import { supabase } from '../../lib/supabase'
 import { formatINR } from '../../lib/format'
 
 export default function CashSales() {
   const { products } = useCart()
+  const { activeEvent } = useEvent()
   const [productId, setProductId] = useState<number | ''>('')
   const [quantity, setQuantity] = useState(1)
   const [submitting, setSubmitting] = useState(false)
@@ -18,6 +20,10 @@ export default function CashSales() {
       toast.error('Select a product and a valid quantity')
       return
     }
+    if (!activeEvent) {
+      toast.error('No active event — start an event before logging sales.')
+      return
+    }
     setSubmitting(true)
 
     const { data: order, error: orderError } = await supabase
@@ -28,6 +34,7 @@ export default function CashSales() {
         total,
         payment_method: 'cash',
         discount_code_used: null,
+        event_id: activeEvent.id,
       })
       .select()
       .single()
@@ -61,6 +68,12 @@ export default function CashSales() {
       <p className="text-disabled text-sm mb-4">
         Manual backup entry for a cash sale outside the normal cart/checkout flow.
       </p>
+
+      {!activeEvent && (
+        <div className="bg-[#242424] border border-danger/40 rounded-xl p-4 max-w-md mb-4 text-sm text-disabled">
+          No active event — start one from the Dashboard before logging cash sales.
+        </div>
+      )}
 
       <div className="bg-[#242424] border border-border rounded-xl p-4 max-w-md flex flex-col gap-3">
         <div>
@@ -97,7 +110,7 @@ export default function CashSales() {
 
         <button
           onClick={handleSubmit}
-          disabled={submitting || !selected}
+          disabled={submitting || !selected || !activeEvent}
           className="w-full bg-primary hover:bg-primary-hover disabled:bg-disabled text-secondary font-semibold py-2.5 rounded-lg"
         >
           {submitting ? 'Saving…' : 'Add Cash Sale'}

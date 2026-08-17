@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
+import { EventProvider } from './context/EventContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -14,11 +15,9 @@ import ProductManager from './pages/admin/ProductManager'
 import DiscountManager from './pages/admin/DiscountManager'
 import QrManager from './pages/admin/QrManager'
 import CashSales from './pages/admin/CashSales'
-import EnhancedAnalytics from './components/analytics/EnhancedAnalytics';
-import Chatbot from './components/analytics/Chatbot';
-import PDFReportGenerator from './components/analytics/PDFReportGenerator';
-import EventArchive from './components/analytics/EventArchive';
-import ExpenseTracker from './components/analytics/ExpenseTracker';
+import Chatbot from './components/analytics/Chatbot'
+import EventArchive from './components/analytics/EventArchive'
+import ExpenseTracker from './components/analytics/ExpenseTracker'
 
 export default function App() {
   return (
@@ -39,9 +38,11 @@ export default function App() {
             <Route
               element={
                 <ProtectedRoute>
-                  <CartProvider>
-                    <Layout />
-                  </CartProvider>
+                  <EventProvider>
+                    <CartProvider>
+                      <Layout />
+                    </CartProvider>
+                  </EventProvider>
                 </ProtectedRoute>
               }
             >
@@ -80,26 +81,10 @@ export default function App() {
                 }
               />
               <Route
-                path="/admin/analytics"
-                element={
-                  <AdminRoute>
-                    <EnhancedAnalytics />
-                  </AdminRoute>
-                }
-              />
-              <Route
                 path="/admin/assistant"
                 element={
                   <AdminRoute>
                     <Chatbot />
-                  </AdminRoute>
-                }
-              />
-              <Route
-                path="/admin/reports"
-                element={
-                  <AdminRoute>
-                    <PDFReportGenerator />
                   </AdminRoute>
                 }
               />

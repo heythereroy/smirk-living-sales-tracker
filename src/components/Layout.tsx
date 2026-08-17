@@ -10,9 +10,7 @@ const navItems = [
   { to: '/admin/discounts', label: 'Discounts', admin: true },
   { to: '/admin/qr', label: 'QR Manager', admin: true },
   { to: '/admin/cash-sales', label: 'Cash Sales', admin: true },
-  { to: '/admin/analytics', label: 'Analytics', admin: true },
   { to: '/admin/assistant', label: 'Assistant', admin: true },
-  { to: '/admin/reports', label: 'PDF Report', admin: true },
   { to: '/admin/event-archive', label: 'Event Archive', admin: true },
   { to: '/admin/expenses', label: 'Expenses', admin: true },
 ]

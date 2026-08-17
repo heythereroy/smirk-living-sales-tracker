@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
 import { formatINR } from '../../lib/format'
@@ -13,11 +13,20 @@ const ADMIN_POLL_MS = 3000
 type ProductForm = {
   name: string
   price: string
+  cost_price: string
+  packaging_cost: string
   category: string
   image_url: string
 }
 
-const emptyForm: ProductForm = { name: '', price: '', category: '', image_url: '' }
+const emptyForm: ProductForm = {
+  name: '',
+  price: '',
+  cost_price: '',
+  packaging_cost: '',
+  category: '',
+  image_url: '',
+}
 
 export default function ProductManager() {
   const [products, setProducts] = useState<Product[]>([])
@@ -28,6 +37,7 @@ export default function ProductManager() {
   const [form, setForm] = useState<ProductForm>(emptyForm)
   const [saving, setSaving] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [search, setSearch] = useState('')
 
   const fetchProducts = async () => {
     const { data, error } = await supabase.from('products').select('*').order('category').order('name')
@@ -41,11 +51,19 @@ export default function ProductManager() {
 
   usePolling(fetchProducts, ADMIN_POLL_MS)
 
+  const filteredProducts = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return products
+    return products.filter((p) => p.name.toLowerCase().includes(q))
+  }, [products, search])
+
   const openEdit = (product: Product) => {
     setEditing(product)
     setForm({
       name: product.name,
       price: String(product.price),
+      cost_price: String(product.cost_price ?? 0),
+      packaging_cost: String(product.packaging_cost ?? 0),
       category: product.category,
       image_url: product.image_url ?? '',
     })
@@ -64,8 +82,14 @@ export default function ProductManager() {
 
   const handleSave = async () => {
     const price = parseFloat(form.price)
+    const costPrice = form.cost_price.trim() ? parseFloat(form.cost_price) : 0
+    const packagingCost = form.packaging_cost.trim() ? parseFloat(form.packaging_cost) : 0
     if (!form.name.trim() || !form.category.trim() || isNaN(price) || price < 0) {
-      toast.error('Please fill in a valid name, category, and price')
+      toast.error('Please fill in a valid name, category, and selling price')
+      return
+    }
+    if (isNaN(costPrice) || costPrice < 0 || isNaN(packagingCost) || packagingCost < 0) {
+      toast.error('Cost price and packaging cost must be valid numbers')
       return
     }
     setSaving(true)
@@ -73,6 +97,8 @@ export default function ProductManager() {
       name: form.name.trim(),
       category: form.category.trim(),
       price,
+      cost_price: costPrice,
+      packaging_cost: packagingCost,
       image_url: form.image_url.trim() || null,
       updated_at: new Date().toISOString(),
     }
@@ -125,8 +151,17 @@ export default function ProductManager() {
         </div>
       </div>
 
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search products by name…"
+        className="w-full bg-[#242424] border border-border rounded-lg px-3 py-2.5 text-sm mb-4 focus:outline-none focus:border-primary"
+      />
+
       {loading ? (
         <p className="text-disabled text-sm">Loading…</p>
+      ) : filteredProducts.length === 0 ? (
+        <p className="text-disabled text-sm">No products match "{search}".</p>
       ) : (
         <div className="overflow-x-auto bg-[#242424] border border-border rounded-xl">
           <table className="w-full text-sm">
@@ -135,12 +170,14 @@ export default function ProductManager() {
                 <th className="p-3">Image</th>
                 <th className="p-3">Name</th>
                 <th className="p-3">Category</th>
-                <th className="p-3">Price</th>
+                <th className="p-3">Selling Price</th>
+                <th className="p-3">Cost Price</th>
+                <th className="p-3">Packaging</th>
                 <th className="p-3">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {products.map((product) => (
+              {filteredProducts.map((product) => (
                 <tr key={product.id} className="border-b border-border last:border-0">
                   <td className="p-3">
                     <div className="w-10 h-10 rounded bg-tertiary overflow-hidden flex items-center justify-center">
@@ -154,6 +191,8 @@ export default function ProductManager() {
                   <td className="p-3 font-medium">{product.name}</td>
                   <td className="p-3 text-disabled">{product.category}</td>
                   <td className="p-3">{formatINR(product.price)}</td>
+                  <td className="p-3 text-disabled">{formatINR(product.cost_price ?? 0)}</td>
+                  <td className="p-3 text-disabled">{formatINR(product.packaging_cost ?? 0)}</td>
                   <td className="p-3">
                     <div className="flex gap-2">
                       <button
@@ -196,16 +235,43 @@ export default function ProductManager() {
                 className="w-full bg-tertiary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
               />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm text-disabled mb-1">Selling Price (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={form.price}
+                  onChange={(e) => setForm({ ...form, price: e.target.value })}
+                  className="w-full bg-tertiary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-disabled mb-1">Cost Price (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.cost_price}
+                  onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
+                  placeholder="0"
+                  className="w-full bg-tertiary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                />
+              </div>
+            </div>
             <div>
-              <label className="block text-sm text-disabled mb-1">Price (₹)</label>
+              <label className="block text-sm text-disabled mb-1">Packaging Cost (₹)</label>
               <input
                 type="number"
                 min="0"
-                step="1"
-                value={form.price}
-                onChange={(e) => setForm({ ...form, price: e.target.value })}
+                step="0.01"
+                value={form.packaging_cost}
+                onChange={(e) => setForm({ ...form, packaging_cost: e.target.value })}
+                placeholder="0"
                 className="w-full bg-tertiary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
               />
+              <p className="text-xs text-disabled mt-1">Cost price + packaging cost = COGS used in P&L reports.</p>
             </div>
             <ImageInput
               bucket="product-images"
@@ -246,12 +312,7 @@ export default function ProductManager() {
         </Modal>
       )}
 
-      {importing && (
-        <CsvImportModal
-          onClose={() => setImporting(false)}
-          onImported={fetchProducts}
-        />
-      )}
+      {importing && <CsvImportModal onClose={() => setImporting(false)} onImported={fetchProducts} />}
     </div>
   )
 }

@@ -5,10 +5,32 @@ export interface Product {
   id: number
   name: string
   price: number
+  cost_price: number
+  packaging_cost: number
   category: string
   image_url: string | null
   created_at: string
   updated_at: string
+}
+
+export type EventCategory = 'Wedding' | 'Corporate' | 'Festival' | 'Popup' | 'Other'
+export type EventStatus = 'active' | 'ended'
+
+export interface Event {
+  id: number
+  name: string
+  location: string
+  category: EventCategory
+  participants: number | null
+  booth_cost: number
+  transportation_cost: number
+  outside_help_cost: number
+  food_drinks_cost: number
+  accommodation_cost: number
+  miscellaneous_cost: number
+  status: EventStatus
+  created_at: string
+  ended_at: string | null
 }
 
 export interface CartRow {
@@ -34,6 +56,9 @@ export interface Order {
   customer_name: string | null
   customer_phone: string | null
   customer_email: string | null
+  // Added via supabase/migration_events.sql — nullable since orders
+  // placed before that migration ran have no event.
+  event_id: number | null
 }
 
 export interface OrderItem {
