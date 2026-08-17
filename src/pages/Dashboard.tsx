@@ -10,13 +10,14 @@ import ScopedAnalytics from '../components/dashboard/ScopedAnalytics'
 import { downloadPnlReport } from '../lib/pnlReport'
 import { downloadScopedReport } from '../lib/scopedReport'
 import { fetchItemsForOrders, fetchOrdersForScope, todayScope, type DashboardScope } from '../lib/scopedOrders'
-import type { DiscountCode, Event } from '../lib/database.types'
+import type { AppliedDiscount } from '../lib/discount'
+import type { Event } from '../lib/database.types'
 
 export default function Dashboard() {
   const { cartLines } = useCart()
   const { activeEvent } = useEvent()
   const [screen, setScreen] = useState<'landing' | 'order'>('landing')
-  const [appliedCode, setAppliedCode] = useState<DiscountCode | null>(null)
+  const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(null)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [startEventOpen, setStartEventOpen] = useState(false)
   const [justEndedEvent, setJustEndedEvent] = useState<Event | null>(null)
@@ -66,18 +67,18 @@ export default function Dashboard() {
     return (
       <>
         <CreateOrderScreen
-          appliedCode={appliedCode}
-          onApplyCode={setAppliedCode}
+          appliedDiscount={appliedDiscount}
+          onApplyDiscount={setAppliedDiscount}
           onCheckout={() => setCheckoutOpen(true)}
           onDone={() => setScreen('landing')}
         />
         {checkoutOpen && (
           <CheckoutModal
-            appliedCode={appliedCode}
+            appliedDiscount={appliedDiscount}
             onClose={() => setCheckoutOpen(false)}
             onComplete={() => {
               setCheckoutOpen(false)
-              setAppliedCode(null)
+              setAppliedDiscount(null)
               setScreen('landing')
             }}
           />

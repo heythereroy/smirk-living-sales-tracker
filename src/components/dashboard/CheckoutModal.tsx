@@ -4,19 +4,19 @@ import { useCart } from '../../context/CartContext'
 import { useEvent } from '../../context/EventContext'
 import { supabase } from '../../lib/supabase'
 import { formatINR } from '../../lib/format'
-import { computeDiscount } from '../../lib/discount'
 import { printReceipt } from '../../lib/receipt'
-import type { DiscountCode, Order, PaymentMethod, QrConfig } from '../../lib/database.types'
+import type { AppliedDiscount } from '../../lib/discount'
+import type { Order, PaymentMethod, QrConfig } from '../../lib/database.types'
 
 interface Props {
-  appliedCode: DiscountCode | null
+  appliedDiscount: AppliedDiscount | null
   onClose: () => void
   onComplete: () => void
 }
 
 type Step = 'details' | 'payment' | 'receipt'
 
-export default function CheckoutModal({ appliedCode, onClose, onComplete }: Props) {
+export default function CheckoutModal({ appliedDiscount, onClose, onComplete }: Props) {
   const { cartLines, subtotal, clearCart } = useCart()
   const { activeEvent } = useEvent()
   const [step, setStep] = useState<Step>('details')
@@ -29,8 +29,8 @@ export default function CheckoutModal({ appliedCode, onClose, onComplete }: Prop
   const [submitting, setSubmitting] = useState(false)
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null)
 
-  const discount = computeDiscount(subtotal, appliedCode)
-  const computedTotal = subtotal - discount.amount
+  const discountAmount = appliedDiscount?.amount ?? 0
+  const computedTotal = subtotal - discountAmount
   const [amount, setAmount] = useState(computedTotal)
 
   useEffect(() => {
@@ -73,10 +73,13 @@ export default function CheckoutModal({ appliedCode, onClose, onComplete }: Prop
       .from('orders')
       .insert({
         subtotal,
-        discount_amount: discount.amount,
+        discount_amount: discountAmount,
         total: amount,
+        final_total: amount,
         payment_method: method,
-        discount_code_used: appliedCode?.code ?? null,
+        discount_code_used: appliedDiscount?.source === 'code' ? appliedDiscount.code.code : null,
+        discount_type: appliedDiscount?.type ?? null,
+        discount_value: appliedDiscount?.value ?? null,
         customer_name: customerName.trim() || null,
         customer_phone: customerPhone.trim() || null,
         customer_email: customerEmail.trim() || null,
@@ -91,7 +94,9 @@ export default function CheckoutModal({ appliedCode, onClose, onComplete }: Prop
           ? 'Order failed — the customer_name/phone/email columns are missing. Run supabase/migration_add_customer_fields.sql first.'
           : orderError?.message.includes('event_id')
             ? 'Order failed — the event_id column is missing. Run supabase/migration_events.sql first.'
-            : 'Could not save order',
+            : orderError?.message.includes('discount_type') || orderError?.message.includes('final_total')
+              ? 'Order failed — discount tracking columns are missing. Run supabase/migration_discount_tracking.sql first.'
+              : 'Could not save order',
       )
       setSubmitting(false)
       return
@@ -109,11 +114,11 @@ export default function CheckoutModal({ appliedCode, onClose, onComplete }: Prop
       return
     }
 
-    if (appliedCode) {
+    if (appliedDiscount?.source === 'code') {
       await supabase
         .from('discount_codes')
-        .update({ used_count: appliedCode.used_count + 1 })
-        .eq('id', appliedCode.id)
+        .update({ used_count: appliedDiscount.code.used_count + 1 })
+        .eq('id', appliedDiscount.code.id)
     }
 
     await clearCart()
@@ -149,10 +154,10 @@ export default function CheckoutModal({ appliedCode, onClose, onComplete }: Prop
               <span>Subtotal</span>
               <span>{formatINR(subtotal)}</span>
             </div>
-            {discount.amount > 0 && (
+            {discountAmount > 0 && (
               <div className="flex justify-between text-success">
-                <span>Discount</span>
-                <span>−{formatINR(discount.amount)}</span>
+                <span>Discount{appliedDiscount ? ` (${appliedDiscount.label})` : ''}</span>
+                <span>−{formatINR(discountAmount)}</span>
               </div>
             )}
             <div className="flex justify-between font-bold text-base mt-1 pt-1 border-t border-border">

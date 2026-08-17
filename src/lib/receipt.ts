@@ -61,7 +61,7 @@ export function buildReceiptHtml(order: Order, lines: ReceiptLine[]): string {
   <div class="row"><span>Subtotal</span><span>${formatINR(order.subtotal)}</span></div>
   ${
     order.discount_amount > 0
-      ? `<div class="row"><span>Discount${order.discount_code_used ? ` (${escapeHtml(order.discount_code_used)})` : ''}</span><span>-${formatINR(order.discount_amount)}</span></div>`
+      ? `<div class="row"><span>Discount${discountLabel(order) ? ` (${escapeHtml(discountLabel(order)!)})` : ''}</span><span>-${formatINR(order.discount_amount)}</span></div>`
       : ''
   }
   <div class="row total"><span>Total</span><span>${formatINR(order.total)}</span></div>
@@ -70,6 +70,13 @@ export function buildReceiptHtml(order: Order, lines: ReceiptLine[]): string {
   <div class="sub">Thank you for shopping with us!</div>
 </body>
 </html>`
+}
+
+export function discountLabel(order: Order): string | null {
+  if (order.discount_code_used) return order.discount_code_used
+  if (order.discount_type === 'percentage' && order.discount_value != null) return `${order.discount_value}% off`
+  if (order.discount_type === 'flat' && order.discount_value != null) return `₹${order.discount_value} off`
+  return null
 }
 
 function escapeHtml(value: string): string {

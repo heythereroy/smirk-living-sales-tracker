@@ -2,7 +2,7 @@ import { supabase } from './supabase'
 import type { Order, Product } from './database.types'
 
 export type DashboardScope =
-  | { mode: 'event'; eventId: number }
+  | { mode: 'event'; eventId: string }
   | { mode: 'range'; from: string; to: string } // yyyy-mm-dd, inclusive
 
 export interface OrderItemWithProduct {

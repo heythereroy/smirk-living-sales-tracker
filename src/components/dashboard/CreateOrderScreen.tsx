@@ -1,15 +1,15 @@
 import ProductSearch from './ProductSearch'
 import CartPanel from './CartPanel'
-import type { DiscountCode } from '../../lib/database.types'
+import type { AppliedDiscount } from '../../lib/discount'
 
 interface Props {
-  appliedCode: DiscountCode | null
-  onApplyCode: (code: DiscountCode | null) => void
+  appliedDiscount: AppliedDiscount | null
+  onApplyDiscount: (discount: AppliedDiscount | null) => void
   onCheckout: () => void
   onDone: () => void
 }
 
-export default function CreateOrderScreen({ appliedCode, onApplyCode, onCheckout, onDone }: Props) {
+export default function CreateOrderScreen({ appliedDiscount, onApplyDiscount, onCheckout, onDone }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-between items-center">
@@ -24,7 +24,7 @@ export default function CreateOrderScreen({ appliedCode, onApplyCode, onCheckout
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 items-start">
         <ProductSearch />
-        <CartPanel appliedCode={appliedCode} onApplyCode={onApplyCode} onCheckout={onCheckout} />
+        <CartPanel appliedDiscount={appliedDiscount} onApplyDiscount={onApplyDiscount} onCheckout={onCheckout} />
       </div>
     </div>
   )

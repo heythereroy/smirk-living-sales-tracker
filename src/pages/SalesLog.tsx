@@ -2,7 +2,7 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import { formatINR } from '../lib/format'
-import { printReceipt } from '../lib/receipt'
+import { printReceipt, discountLabel } from '../lib/receipt'
 import { usePolling } from '../lib/usePolling'
 import type { Order, Product } from '../lib/database.types'
 
@@ -86,7 +86,9 @@ export default function SalesLog() {
                   <p className="text-xs text-disabled">
                     {new Date(order.created_at).toLocaleString()} ·{' '}
                     {order.payment_method === 'phonepe' ? 'PhonePe' : 'Cash'}
-                    {order.discount_code_used ? ` · Code: ${order.discount_code_used}` : ''}
+                    {order.discount_amount > 0
+                      ? ` · Discount${discountLabel(order) ? `: ${discountLabel(order)}` : ''} (−${formatINR(order.discount_amount)})`
+                      : ''}
                   </p>
                 </div>
                 <span className="font-bold text-primary">{formatINR(order.total)}</span>

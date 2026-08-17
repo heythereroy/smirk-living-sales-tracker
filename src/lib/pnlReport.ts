@@ -8,14 +8,20 @@ function esc(v: string): string {
 }
 
 export async function downloadPnlReport(event: Event, orders: Order[], items: OrderItemWithProduct[]) {
-  let totalRevenue = 0
+  let grossRevenue = 0
+  let netRevenue = 0
+  let totalDiscounts = 0
+  let discountedOrderCount = 0
   let cashRevenue = 0
   let cashCount = 0
   let phonepeRevenue = 0
   let phonepeCount = 0
 
   orders.forEach((o) => {
-    totalRevenue += o.total
+    grossRevenue += o.subtotal
+    netRevenue += o.total
+    totalDiscounts += o.discount_amount
+    if (o.discount_amount > 0) discountedOrderCount += 1
     if (o.payment_method === 'cash') {
       cashRevenue += o.total
       cashCount += 1
@@ -49,16 +55,18 @@ export async function downloadPnlReport(event: Event, orders: Order[], items: Or
     productStats[item.product.name] = entry
   })
 
-  const grossProfit = totalRevenue - totalCogs
+  const grossProfit = netRevenue - totalCogs
   const netProfit = grossProfit - totalExpenses
-  const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0
+  const profitMargin = netRevenue > 0 ? (netProfit / netRevenue) * 100 : 0
+  const avgDiscountPerOrder = discountedOrderCount > 0 ? totalDiscounts / discountedOrderCount : 0
+  const discountedRevenuePercent = grossRevenue > 0 ? (totalDiscounts / grossRevenue) * 100 : 0
 
   const topProducts = Object.entries(productStats)
     .sort((a, b) => b[1].qty - a[1].qty)
     .slice(0, 5)
 
   const bestSeller = topProducts[0]?.[0] ?? 'N/A'
-  const avgOrderValue = orders.length > 0 ? totalRevenue / orders.length : 0
+  const avgOrderValue = orders.length > 0 ? netRevenue / orders.length : 0
 
   const recommendations: string[] = []
   if (profitMargin < 0) {
@@ -86,17 +94,45 @@ export async function downloadPnlReport(event: Event, orders: Order[], items: Or
 
       <h2 style="color: #1A1A1A; border-bottom: 2px solid #FF6B35; padding-bottom: 8px;">Revenue</h2>
       <table style="width: 100%; border-collapse: collapse; margin: 12px 0 24px;">
+        <tr>
+          <td style="padding: 8px 10px; border: 1px solid #ECE4D7;">Gross Revenue (before discounts)</td>
+          <td style="padding: 8px 10px; border: 1px solid #ECE4D7; text-align: right;">${formatINR(grossRevenue)}</td>
+        </tr>
         <tr style="background: #F5F2ED;">
-          <td style="padding: 8px 10px; border: 1px solid #ECE4D7; font-weight: bold;">Total Revenue</td>
-          <td style="padding: 8px 10px; border: 1px solid #ECE4D7; text-align: right; color: #FF6B35; font-weight: bold;">${formatINR(totalRevenue)}</td>
+          <td style="padding: 8px 10px; border: 1px solid #ECE4D7;">Total Discounts</td>
+          <td style="padding: 8px 10px; border: 1px solid #ECE4D7; text-align: right;">−${formatINR(totalDiscounts)}</td>
         </tr>
         <tr>
+          <td style="padding: 8px 10px; border: 1px solid #ECE4D7; font-weight: bold;">Net Revenue (after discounts)</td>
+          <td style="padding: 8px 10px; border: 1px solid #ECE4D7; text-align: right; color: #FF6B35; font-weight: bold;">${formatINR(netRevenue)}</td>
+        </tr>
+        <tr style="background: #F5F2ED;">
           <td style="padding: 8px 10px; border: 1px solid #ECE4D7;">Cash Revenue</td>
           <td style="padding: 8px 10px; border: 1px solid #ECE4D7; text-align: right;">${formatINR(cashRevenue)}</td>
         </tr>
-        <tr style="background: #F5F2ED;">
+        <tr>
           <td style="padding: 8px 10px; border: 1px solid #ECE4D7;">PhonePe Revenue</td>
           <td style="padding: 8px 10px; border: 1px solid #ECE4D7; text-align: right;">${formatINR(phonepeRevenue)}</td>
+        </tr>
+      </table>
+
+      <h2 style="color: #1A1A1A; border-bottom: 2px solid #FF6B35; padding-bottom: 8px;">Discounts Summary</h2>
+      <table style="width: 100%; border-collapse: collapse; margin: 12px 0 24px;">
+        <tr>
+          <td style="padding: 8px 10px; border: 1px solid #ECE4D7;">Total Discounts Given</td>
+          <td style="padding: 8px 10px; border: 1px solid #ECE4D7; text-align: right;">${formatINR(totalDiscounts)}</td>
+        </tr>
+        <tr style="background: #F5F2ED;">
+          <td style="padding: 8px 10px; border: 1px solid #ECE4D7;">Orders with a Discount</td>
+          <td style="padding: 8px 10px; border: 1px solid #ECE4D7; text-align: right;">${discountedOrderCount} of ${orders.length}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 10px; border: 1px solid #ECE4D7;">Average Discount per Discounted Order</td>
+          <td style="padding: 8px 10px; border: 1px solid #ECE4D7; text-align: right;">${formatINR(avgDiscountPerOrder)}</td>
+        </tr>
+        <tr style="background: #F5F2ED;">
+          <td style="padding: 8px 10px; border: 1px solid #ECE4D7;">% of Gross Revenue Discounted Away</td>
+          <td style="padding: 8px 10px; border: 1px solid #ECE4D7; text-align: right;">${discountedRevenuePercent.toFixed(1)}%</td>
         </tr>
       </table>
 

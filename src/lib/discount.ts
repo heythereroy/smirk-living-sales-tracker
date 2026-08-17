@@ -1,38 +1,49 @@
 import type { DiscountCode } from './database.types'
 
-export const AUTO_DISCOUNT_THRESHOLD = 1500
-export const AUTO_DISCOUNT_PERCENT = 10
+// Discounts are manual only — the cashier must explicitly apply a named
+// code or type a flat/percentage value. There is no automatic threshold
+// discount.
+export type AppliedDiscount =
+  | { source: 'code'; code: DiscountCode; type: 'code'; value: number; amount: number; label: string }
+  | { source: 'manual'; type: 'flat' | 'percentage'; value: number; amount: number; label: string }
 
-export interface DiscountResult {
-  percent: number
-  amount: number
-  label: string | null
-  source: 'code' | 'auto' | null
+export function discountFromCode(subtotal: number, code: DiscountCode): AppliedDiscount {
+  const amount = Math.round((subtotal * code.discount_percent) / 100)
+  return {
+    source: 'code',
+    code,
+    type: 'code',
+    value: code.discount_percent,
+    amount,
+    label: `${code.code} — ${code.discount_percent}% OFF`,
+  }
 }
 
-// A manually applied code takes precedence over the automatic bulk discount
-// rather than stacking with it — codes are deliberate promotions, the
-// auto-discount is just a bulk-order incentive.
-export function computeDiscount(subtotal: number, appliedCode: DiscountCode | null): DiscountResult {
-  if (appliedCode) {
-    const amount = Math.round((subtotal * appliedCode.discount_percent) / 100)
+export function parseManualDiscount(
+  raw: string,
+  subtotal: number,
+): { discount: AppliedDiscount } | { error: string } {
+  const trimmed = raw.trim()
+  if (!trimmed) return { error: 'Enter a discount value' }
+
+  const isPercent = trimmed.endsWith('%')
+  const numStr = isPercent ? trimmed.slice(0, -1).trim() : trimmed
+  const num = Number(numStr)
+
+  if (numStr === '' || isNaN(num) || num < 0) {
+    return { error: 'Enter a valid number, e.g. 10 or 10%' }
+  }
+
+  if (isPercent) {
+    if (num > 100) return { error: 'Percentage cannot exceed 100%' }
+    const amount = Math.round((subtotal * num) / 100)
     return {
-      percent: appliedCode.discount_percent,
-      amount,
-      label: `${appliedCode.code} — ${appliedCode.discount_percent}% OFF`,
-      source: 'code',
+      discount: { source: 'manual', type: 'percentage', value: num, amount, label: `${num}% off` },
     }
   }
 
-  if (subtotal >= AUTO_DISCOUNT_THRESHOLD) {
-    const amount = Math.round((subtotal * AUTO_DISCOUNT_PERCENT) / 100)
-    return {
-      percent: AUTO_DISCOUNT_PERCENT,
-      amount,
-      label: `${AUTO_DISCOUNT_PERCENT}% OFF — Save ${amount}`,
-      source: 'auto',
-    }
+  if (num > subtotal) return { error: 'Discount cannot exceed cart total' }
+  return {
+    discount: { source: 'manual', type: 'flat', value: num, amount: num, label: `₹${num} off` },
   }
-
-  return { percent: 0, amount: 0, label: null, source: null }
 }

@@ -1,22 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useCart } from '../../context/CartContext'
 import { supabase } from '../../lib/supabase'
 import { formatINR } from '../../lib/format'
-import { computeDiscount } from '../../lib/discount'
+import { discountFromCode, parseManualDiscount, type AppliedDiscount } from '../../lib/discount'
 import type { DiscountCode } from '../../lib/database.types'
 
 interface Props {
-  appliedCode: DiscountCode | null
-  onApplyCode: (code: DiscountCode | null) => void
+  appliedDiscount: AppliedDiscount | null
+  onApplyDiscount: (discount: AppliedDiscount | null) => void
   onCheckout: () => void
 }
 
-export default function CartPanel({ appliedCode, onApplyCode, onCheckout }: Props) {
+export default function CartPanel({ appliedDiscount, onApplyDiscount, onCheckout }: Props) {
   const { cartLines, subtotal, setQuantity, removeFromCart, clearCart } = useCart()
   const [codeInput, setCodeInput] = useState('')
-  const [applying, setApplying] = useState(false)
+  const [applyingCode, setApplyingCode] = useState(false)
   const [activeCodes, setActiveCodes] = useState<DiscountCode[]>([])
+  const [manualInput, setManualInput] = useState('')
 
   useEffect(() => {
     supabase
@@ -26,31 +27,57 @@ export default function CartPanel({ appliedCode, onApplyCode, onCheckout }: Prop
       .then(({ data }) => setActiveCodes((data as DiscountCode[]) ?? []))
   }, [])
 
-  const discount = computeDiscount(subtotal, appliedCode)
-  const total = subtotal - discount.amount
+  const total = subtotal - (appliedDiscount?.amount ?? 0)
 
-  const handleApply = async () => {
+  const manualPreview = useMemo(() => {
+    if (!manualInput.trim()) return null
+    return parseManualDiscount(manualInput, subtotal)
+  }, [manualInput, subtotal])
+
+  const handleApplyCode = async () => {
     const trimmed = codeInput.trim()
     if (!trimmed) return
-    setApplying(true)
+    setApplyingCode(true)
     const { data, error } = await supabase
       .from('discount_codes')
       .select('*')
       .ilike('code', trimmed)
       .eq('is_active', true)
       .maybeSingle()
-    setApplying(false)
+    setApplyingCode(false)
     if (error || !data) {
       toast.error('Invalid or inactive discount code')
       return
     }
-    onApplyCode(data as DiscountCode)
-    toast.success(`Applied ${(data as DiscountCode).code}`)
+    const discount = discountFromCode(subtotal, data as DiscountCode)
+    onApplyDiscount(discount)
+    toast.success(`Applied ${discount.label}`)
+  }
+
+  const handleApplyManual = () => {
+    if (!manualPreview) return
+    if ('error' in manualPreview) {
+      toast.error(manualPreview.error)
+      return
+    }
+    onApplyDiscount(manualPreview.discount)
+    toast.success(
+      manualPreview.discount.type === 'percentage'
+        ? `Discount of ${manualPreview.discount.value}% applied`
+        : `Discount of ${formatINR(manualPreview.discount.value)} applied`,
+    )
+    setManualInput('')
+  }
+
+  const clearDiscount = () => {
+    onApplyDiscount(null)
+    setCodeInput('')
+    setManualInput('')
   }
 
   const handleClearCart = async () => {
     await clearCart()
-    onApplyCode(null)
+    clearDiscount()
   }
 
   return (
@@ -98,42 +125,64 @@ export default function CartPanel({ appliedCode, onApplyCode, onCheckout }: Prop
       )}
 
       <div className="border-t border-border pt-3">
-        {appliedCode ? (
+        {appliedDiscount ? (
           <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-success">Code {appliedCode.code} applied</span>
-            <button
-              className="text-disabled underline text-xs"
-              onClick={() => {
-                onApplyCode(null)
-                setCodeInput('')
-              }}
-            >
+            <span className="text-success">✓ {appliedDiscount.label} applied</span>
+            <button className="text-disabled underline text-xs" onClick={clearDiscount}>
               Remove
             </button>
           </div>
         ) : (
-          <div className="mb-2">
-            <div className="flex gap-2">
-              <input
-                value={codeInput}
-                onChange={(e) => setCodeInput(e.target.value)}
-                placeholder="Discount code"
-                className="flex-1 min-w-0 bg-tertiary border border-border rounded-lg px-2.5 py-1.5 text-sm placeholder:text-disabled focus:outline-none focus:border-primary"
-              />
-              <button
-                onClick={handleApply}
-                disabled={applying || !codeInput.trim()}
-                className="px-3 py-1.5 rounded-lg bg-tertiary border border-border hover:border-primary disabled:opacity-50 text-sm shrink-0"
-              >
-                Apply
-              </button>
+          <div className="mb-3 flex flex-col gap-3">
+            <div>
+              <p className="text-xs text-disabled mb-1">Discount code</p>
+              <div className="flex gap-2">
+                <input
+                  value={codeInput}
+                  onChange={(e) => setCodeInput(e.target.value)}
+                  placeholder="Discount code"
+                  className="flex-1 min-w-0 bg-tertiary border border-border rounded-lg px-2.5 py-1.5 text-sm placeholder:text-disabled focus:outline-none focus:border-primary"
+                />
+                <button
+                  onClick={handleApplyCode}
+                  disabled={applyingCode || !codeInput.trim()}
+                  className="px-3 py-1.5 rounded-lg bg-tertiary border border-border hover:border-primary disabled:opacity-50 text-sm shrink-0"
+                >
+                  Apply
+                </button>
+              </div>
+              {activeCodes.length > 0 && (
+                <p className="text-xs text-disabled mt-1.5">
+                  Active codes: {activeCodes.map((c) => `${c.code} (${c.discount_percent}%)`).join(', ')}
+                </p>
+              )}
             </div>
-            {activeCodes.length > 0 && (
-              <p className="text-xs text-disabled mt-1.5">
-                Active codes:{' '}
-                {activeCodes.map((c) => `${c.code} (${c.discount_percent}%)`).join(', ')}
-              </p>
-            )}
+
+            <div>
+              <p className="text-xs text-disabled mb-1">Apply Discount (flat ₹ or %)</p>
+              <div className="flex gap-2">
+                <input
+                  value={manualInput}
+                  onChange={(e) => setManualInput(e.target.value)}
+                  placeholder="e.g., 10 or 10%"
+                  className="flex-1 min-w-0 bg-tertiary border border-border rounded-lg px-2.5 py-1.5 text-sm placeholder:text-disabled focus:outline-none focus:border-primary"
+                />
+                <button
+                  onClick={handleApplyManual}
+                  disabled={!manualInput.trim()}
+                  className="px-3 py-1.5 rounded-lg bg-tertiary border border-border hover:border-primary disabled:opacity-50 text-sm shrink-0"
+                >
+                  Apply Discount
+                </button>
+              </div>
+              {manualPreview && (
+                <p className={`text-xs mt-1.5 ${'error' in manualPreview ? 'text-danger' : 'text-success'}`}>
+                  {'error' in manualPreview
+                    ? manualPreview.error
+                    : `Preview: ${formatINR(subtotal)} − ${formatINR(manualPreview.discount.amount)} = ${formatINR(subtotal - manualPreview.discount.amount)}`}
+                </p>
+              )}
+            </div>
           </div>
         )}
 
@@ -141,15 +190,15 @@ export default function CartPanel({ appliedCode, onApplyCode, onCheckout }: Prop
           <span>Subtotal</span>
           <span>{formatINR(subtotal)}</span>
         </div>
-        {discount.label && (
+        {appliedDiscount && (
           <div className="flex justify-between text-sm text-success mt-1">
-            <span>{discount.label}</span>
-            <span>−{formatINR(discount.amount)}</span>
+            <span>Discount Applied ({appliedDiscount.label})</span>
+            <span>−{formatINR(appliedDiscount.amount)}</span>
           </div>
         )}
 
         <div className="mt-3 bg-primary rounded-lg px-4 py-3 flex justify-between items-center">
-          <span className="font-semibold">Total</span>
+          <span className="font-semibold">Final Total</span>
           <span className="text-xl font-extrabold">{formatINR(total)}</span>
         </div>
 

@@ -17,7 +17,7 @@ export type EventCategory = 'Wedding' | 'Corporate' | 'Festival' | 'Popup' | 'Ot
 export type EventStatus = 'active' | 'ended'
 
 export interface Event {
-  id: number
+  id: string // uuid
   name: string
   location: string
   category: EventCategory
@@ -31,6 +31,7 @@ export interface Event {
   status: EventStatus
   created_at: string
   ended_at: string | null
+  created_by: string | null // uuid, references auth.users
 }
 
 export interface CartRow {
@@ -57,8 +58,23 @@ export interface Order {
   customer_phone: string | null
   customer_email: string | null
   // Added via supabase/migration_events.sql — nullable since orders
-  // placed before that migration ran have no event.
-  event_id: number | null
+  // placed before that migration ran have no event. events.id is uuid.
+  event_id: string | null
+  // Added via supabase/migration_discount_tracking.sql.
+  discount_type: 'flat' | 'percentage' | 'code' | null
+  discount_value: number | null
+  final_total: number
+}
+
+export interface ArchivedEvent {
+  id: string // uuid
+  event_id: string | null // uuid, references events(id)
+  event_name: string
+  event_date: string
+  total_revenue: number
+  total_profit: number
+  total_orders: number
+  created_at: string
 }
 
 export interface OrderItem {
