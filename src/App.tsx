@@ -79,6 +79,46 @@ export default function App() {
                   </AdminRoute>
                 }
               />
+              <Route
+                path="/admin/analytics"
+                element={
+                  <AdminRoute>
+                    <EnhancedAnalytics />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/assistant"
+                element={
+                  <AdminRoute>
+                    <Chatbot />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/reports"
+                element={
+                  <AdminRoute>
+                    <PDFReportGenerator />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/event-archive"
+                element={
+                  <AdminRoute>
+                    <EventArchive />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/expenses"
+                element={
+                  <AdminRoute>
+                    <ExpenseTracker />
+                  </AdminRoute>
+                }
+              />
             </Route>
           </Routes>
         </BrowserRouter>

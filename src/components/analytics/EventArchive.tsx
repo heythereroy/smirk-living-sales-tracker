@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabase';
 
 interface ArchivedEvent {
   id: string;
@@ -54,14 +54,14 @@ export default function EventArchive() {
   };
 
   if (loading) {
-    return <div className="text-center py-8">Loading events...</div>;
+    return <div className="text-center py-8 text-disabled">Loading events...</div>;
   }
 
   if (events.length === 0) {
     return (
-      <div className="bg-white p-8 rounded-lg shadow text-center">
-        <p className="text-gray-600 mb-4">No archived events yet</p>
-        <p className="text-sm text-gray-500">
+      <div className="bg-[#242424] border border-border p-8 rounded-lg text-center">
+        <p className="text-secondary mb-2">No archived events yet</p>
+        <p className="text-sm text-disabled">
           Events will appear here after you save them at the end of each pop-up
         </p>
       </div>
@@ -70,26 +70,26 @@ export default function EventArchive() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold mb-6">Past Events</h1>
+      <h1 className="text-2xl font-bold mb-6 text-secondary">Past Events</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {events.map((event) => (
-          <div key={event.id} className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition">
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">{event.event_name}</h3>
-            <p className="text-sm text-gray-600 mb-4">📅 {new Date(event.event_date).toLocaleDateString()}</p>
+          <div key={event.id} className="bg-[#242424] border border-border p-6 rounded-lg hover:border-primary transition-colors">
+            <h3 className="text-lg font-semibold text-secondary mb-2">{event.event_name}</h3>
+            <p className="text-sm text-disabled mb-4">📅 {new Date(event.event_date).toLocaleDateString()}</p>
 
             <div className="space-y-2 mb-4">
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Revenue:</span>
-                <span className="font-semibold text-orange-600">₹{event.total_revenue.toFixed(2)}</span>
+                <span className="text-disabled">Revenue:</span>
+                <span className="font-semibold text-primary">₹{event.total_revenue.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Profit:</span>
-                <span className="font-semibold text-green-600">₹{event.total_profit.toFixed(2)}</span>
+                <span className="text-disabled">Profit:</span>
+                <span className="font-semibold text-success">₹{event.total_profit.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Orders:</span>
-                <span className="font-semibold">{event.total_orders}</span>
+                <span className="text-disabled">Orders:</span>
+                <span className="font-semibold text-secondary">{event.total_orders}</span>
               </div>
             </div>
 
@@ -100,13 +100,13 @@ export default function EventArchive() {
                     `Event: ${event.event_name}\nDate: ${new Date(event.event_date).toLocaleDateString()}\nRevenue: ₹${event.total_revenue.toFixed(2)}\nProfit: ₹${event.total_profit.toFixed(2)}\nOrders: ${event.total_orders}`
                   );
                 }}
-                className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm"
+                className="flex-1 px-3 py-2 bg-tertiary border border-border hover:border-primary text-secondary rounded text-sm transition-colors"
               >
                 View
               </button>
               <button
                 onClick={() => deleteEvent(event.id)}
-                className="flex-1 px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition text-sm"
+                className="flex-1 px-3 py-2 bg-danger hover:brightness-110 text-secondary rounded text-sm transition-all"
               >
                 Delete
               </button>
@@ -117,22 +117,22 @@ export default function EventArchive() {
 
       {/* Summary Stats */}
       {events.length > 0 && (
-        <div className="mt-8 bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold mb-4">Overall Statistics</h2>
+        <div className="mt-8 bg-[#242424] border border-border p-6 rounded-lg">
+          <h2 className="text-xl font-semibold mb-4 text-secondary">Overall Statistics</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center">
-              <p className="text-gray-600 text-sm">Total Events</p>
-              <p className="text-2xl font-bold text-orange-600">{events.length}</p>
+              <p className="text-disabled text-sm">Total Events</p>
+              <p className="text-2xl font-bold text-primary">{events.length}</p>
             </div>
             <div className="text-center">
-              <p className="text-gray-600 text-sm">Total Revenue</p>
-              <p className="text-2xl font-bold text-green-600">
+              <p className="text-disabled text-sm">Total Revenue</p>
+              <p className="text-2xl font-bold text-success">
                 ₹{events.reduce((sum, e) => sum + e.total_revenue, 0).toFixed(2)}
               </p>
             </div>
             <div className="text-center">
-              <p className="text-gray-600 text-sm">Total Profit</p>
-              <p className="text-2xl font-bold text-blue-600">
+              <p className="text-disabled text-sm">Total Profit</p>
+              <p className="text-2xl font-bold text-secondary">
                 ₹{events.reduce((sum, e) => sum + e.total_profit, 0).toFixed(2)}
               </p>
             </div>

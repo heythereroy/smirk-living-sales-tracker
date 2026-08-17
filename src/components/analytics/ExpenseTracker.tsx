@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Expenses {
   booth_cost: number;
@@ -55,34 +55,34 @@ export default function ExpenseTracker() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold">Event Expenses</h1>
+      <h1 className="text-2xl font-bold text-secondary">Event Expenses</h1>
 
       {/* Display Mode */}
       {!isEditing ? (
-        <div className="bg-white p-8 rounded-lg shadow space-y-4">
+        <div className="bg-[#242424] border border-border p-8 rounded-lg space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg border border-orange-200">
-              <p className="text-gray-600 text-sm">Booth Cost</p>
-              <p className="text-2xl font-bold text-orange-600">₹{expenses.booth_cost.toFixed(2)}</p>
+            <div className="p-4 bg-tertiary rounded-lg border border-border">
+              <p className="text-disabled text-sm">Booth Cost</p>
+              <p className="text-2xl font-bold text-primary">₹{expenses.booth_cost.toFixed(2)}</p>
             </div>
-            <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
-              <p className="text-gray-600 text-sm">Fuel Cost</p>
-              <p className="text-2xl font-bold text-blue-600">₹{expenses.fuel_cost.toFixed(2)}</p>
+            <div className="p-4 bg-tertiary rounded-lg border border-border">
+              <p className="text-disabled text-sm">Fuel Cost</p>
+              <p className="text-2xl font-bold text-secondary">₹{expenses.fuel_cost.toFixed(2)}</p>
             </div>
-            <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200">
-              <p className="text-gray-600 text-sm">Food Cost</p>
-              <p className="text-2xl font-bold text-green-600">₹{expenses.food_cost.toFixed(2)}</p>
+            <div className="p-4 bg-tertiary rounded-lg border border-border">
+              <p className="text-disabled text-sm">Food Cost</p>
+              <p className="text-2xl font-bold text-success">₹{expenses.food_cost.toFixed(2)}</p>
             </div>
-            <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200">
-              <p className="text-gray-600 text-sm">Staff Cost</p>
-              <p className="text-2xl font-bold text-purple-600">₹{expenses.staff_cost.toFixed(2)}</p>
+            <div className="p-4 bg-tertiary rounded-lg border border-border">
+              <p className="text-disabled text-sm">Staff Cost</p>
+              <p className="text-2xl font-bold text-secondary">₹{expenses.staff_cost.toFixed(2)}</p>
             </div>
           </div>
 
-          <div className="pt-4 border-t-2 border-gray-200">
+          <div className="pt-4 border-t border-border">
             <div className="flex justify-between items-center mb-6">
-              <p className="text-lg font-semibold">Total Expenses</p>
-              <p className="text-3xl font-bold text-red-600">₹{totalExpenses.toFixed(2)}</p>
+              <p className="text-lg font-semibold text-secondary">Total Expenses</p>
+              <p className="text-3xl font-bold text-danger">₹{totalExpenses.toFixed(2)}</p>
             </div>
 
             <div className="flex gap-4">
@@ -91,13 +91,13 @@ export default function ExpenseTracker() {
                   setTempExpenses(expenses);
                   setIsEditing(true);
                 }}
-                className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
+                className="flex-1 px-4 py-3 bg-primary hover:bg-primary-hover text-secondary rounded-lg transition-colors font-semibold"
               >
                 ✏️ Edit Expenses
               </button>
               <button
                 onClick={resetExpenses}
-                className="flex-1 px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition font-semibold"
+                className="flex-1 px-4 py-3 bg-tertiary border border-border hover:border-primary text-secondary rounded-lg transition-colors font-semibold"
               >
                 🔄 Reset for Next Event
               </button>
@@ -106,72 +106,72 @@ export default function ExpenseTracker() {
         </div>
       ) : (
         /* Edit Mode */
-        <div className="bg-white p-8 rounded-lg shadow space-y-6">
+        <div className="bg-[#242424] border border-border p-8 rounded-lg space-y-6">
           <div>
-            <label className="block text-gray-700 font-semibold mb-2">Booth Cost (₹)</label>
+            <label className="block text-secondary font-semibold mb-2">Booth Cost (₹)</label>
             <input
               type="number"
               min="0"
               step="0.01"
               value={tempExpenses.booth_cost}
               onChange={(e) => handleInputChange('booth_cost', parseFloat(e.target.value) || 0)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+              className="w-full px-4 py-2 bg-tertiary border border-border rounded-lg text-secondary focus:outline-none focus:border-primary"
               placeholder="e.g., 1000"
             />
-            <p className="text-sm text-gray-500 mt-1">Cost of the booth/stall rental</p>
+            <p className="text-sm text-disabled mt-1">Cost of the booth/stall rental</p>
           </div>
 
           <div>
-            <label className="block text-gray-700 font-semibold mb-2">Fuel Cost (₹)</label>
+            <label className="block text-secondary font-semibold mb-2">Fuel Cost (₹)</label>
             <input
               type="number"
               min="0"
               step="0.01"
               value={tempExpenses.fuel_cost}
               onChange={(e) => handleInputChange('fuel_cost', parseFloat(e.target.value) || 0)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+              className="w-full px-4 py-2 bg-tertiary border border-border rounded-lg text-secondary focus:outline-none focus:border-primary"
               placeholder="e.g., 200"
             />
-            <p className="text-sm text-gray-500 mt-1">Transportation/fuel expenses</p>
+            <p className="text-sm text-disabled mt-1">Transportation/fuel expenses</p>
           </div>
 
           <div>
-            <label className="block text-gray-700 font-semibold mb-2">Food Cost (₹)</label>
+            <label className="block text-secondary font-semibold mb-2">Food Cost (₹)</label>
             <input
               type="number"
               min="0"
               step="0.01"
               value={tempExpenses.food_cost}
               onChange={(e) => handleInputChange('food_cost', parseFloat(e.target.value) || 0)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+              className="w-full px-4 py-2 bg-tertiary border border-border rounded-lg text-secondary focus:outline-none focus:border-primary"
               placeholder="e.g., 500"
             />
-            <p className="text-sm text-gray-500 mt-1">Food and drinks for the day</p>
+            <p className="text-sm text-disabled mt-1">Food and drinks for the day</p>
           </div>
 
           <div>
-            <label className="block text-gray-700 font-semibold mb-2">Staff Cost (₹)</label>
+            <label className="block text-secondary font-semibold mb-2">Staff Cost (₹)</label>
             <input
               type="number"
               min="0"
               step="0.01"
               value={tempExpenses.staff_cost}
               onChange={(e) => handleInputChange('staff_cost', parseFloat(e.target.value) || 0)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+              className="w-full px-4 py-2 bg-tertiary border border-border rounded-lg text-secondary focus:outline-none focus:border-primary"
               placeholder="e.g., 0"
             />
-            <p className="text-sm text-gray-500 mt-1">Staff wages or assistance costs</p>
+            <p className="text-sm text-disabled mt-1">Staff wages or assistance costs</p>
           </div>
 
-          <div className="pt-4 border-t-2 border-gray-200">
-            <p className="text-lg font-semibold mb-4">
-              Total: <span className="text-red-600">₹{Object.values(tempExpenses).reduce((a, b) => a + b, 0).toFixed(2)}</span>
+          <div className="pt-4 border-t border-border">
+            <p className="text-lg font-semibold mb-4 text-secondary">
+              Total: <span className="text-danger">₹{Object.values(tempExpenses).reduce((a, b) => a + b, 0).toFixed(2)}</span>
             </p>
 
             <div className="flex gap-4">
               <button
                 onClick={saveExpenses}
-                className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-semibold"
+                className="flex-1 px-4 py-3 bg-success hover:brightness-110 text-secondary rounded-lg transition-all font-semibold"
               >
                 ✅ Save Expenses
               </button>
@@ -180,7 +180,7 @@ export default function ExpenseTracker() {
                   setTempExpenses(expenses);
                   setIsEditing(false);
                 }}
-                className="flex-1 px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition font-semibold"
+                className="flex-1 px-4 py-3 bg-tertiary border border-border hover:border-primary text-secondary rounded-lg transition-colors font-semibold"
               >
                 ❌ Cancel
               </button>
@@ -190,12 +190,12 @@ export default function ExpenseTracker() {
       )}
 
       {/* Tips */}
-      <div className="bg-blue-50 border-l-4 border-blue-600 p-4 rounded">
-        <p className="font-semibold text-blue-900 mb-2">💡 Pro Tip</p>
-        <ul className="text-sm text-blue-800 space-y-1">
+      <div className="bg-[#242424] border-l-4 border-primary p-4 rounded">
+        <p className="font-semibold text-secondary mb-2">💡 Pro Tip</p>
+        <ul className="text-sm text-disabled space-y-1">
           <li>• Track all expenses to calculate true profit</li>
           <li>• Compare event costs to see which pop-ups are most profitable</li>
-          <li>• Expenses are included in your PDF report and profit calculations</li>
+          <li>• Expenses are included in your PDF report</li>
           <li>• Reset expenses at the start of each new event</li>
         </ul>
       </div>
