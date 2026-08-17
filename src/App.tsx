@@ -14,6 +14,11 @@ import ProductManager from './pages/admin/ProductManager'
 import DiscountManager from './pages/admin/DiscountManager'
 import QrManager from './pages/admin/QrManager'
 import CashSales from './pages/admin/CashSales'
+import EnhancedAnalytics from './components/analytics/EnhancedAnalytics';
+import Chatbot from './components/analytics/Chatbot';
+import PDFReportGenerator from './components/analytics/PDFReportGenerator';
+import EventArchive from './components/analytics/EventArchive';
+import ExpenseTracker from './components/analytics/ExpenseTracker';
 
 export default function App() {
   return (
